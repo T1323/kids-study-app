@@ -1,12 +1,68 @@
 import { IdiomExplain, IdiomExplainRequest } from "../types";
 
+const API_BASE =
+  typeof import.meta.env.VITE_API_BASE_URL === "string" &&
+  import.meta.env.VITE_API_BASE_URL.trim() !== ""
+    ? import.meta.env.VITE_API_BASE_URL.trim().replace(/\/$/, "")
+    : "http://localhost:3000";
+
+export interface ProviderOption {
+  id: string;
+  name: string;
+  getKeyUrl: string | null;
+}
+
 /**
- * 專門負責與後端 / LLM 溝通的抽象層。
- *
- * 目前實作為前端 mock，方便先開發介面與互動。
- * 未來要接 LLM 時，只要：
- * 1. 保留這個函式簽章不變
- * 2. 在函式內改成呼叫你的後端 API 即可
+ * 取得可選的模型/服務清單（供下拉選單）。
+ */
+export async function fetchProviders(): Promise<ProviderOption[]> {
+  const res = await fetch(`${API_BASE}/api/providers`);
+  if (!res.ok) throw new Error("無法取得模型清單");
+  return res.json();
+}
+
+/**
+ * 依 API Key 前綴推測可能的 provider（供自動選取）。
+ */
+export async function fetchDetectProvider(key: string): Promise<{ provider: string | null }> {
+  const k = encodeURIComponent(key.trim());
+  const res = await fetch(`${API_BASE}/api/providers/detect?key=${k}`);
+  if (!res.ok) return { provider: null };
+  return res.json();
+}
+
+/**
+ * 呼叫後端 API，由 LLM 生成成語說明。
+ */
+export async function fetchIdiomExplain(
+  req: IdiomExplainRequest
+): Promise<IdiomExplain> {
+  const body: Record<string, unknown> = {
+    idiom: req.idiom,
+    level: req.level,
+  };
+  if (req.apiKey?.trim()) {
+    body.apiKey = req.apiKey.trim();
+    if (req.provider?.trim()) body.provider = req.provider.trim();
+    if (req.model?.trim()) body.model = req.model.trim();
+    if (req.baseURL?.trim()) body.baseURL = req.baseURL.trim();
+  }
+  const res = await fetch(`${API_BASE}/api/idiom/explain`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      (body as { error?: string })?.error || `請求失敗（${res.status}）`
+    );
+  }
+  return res.json();
+}
+
+/**
+ * Mock 版本，供後端未啟動或離線時使用。
  */
 export async function fetchIdiomExplainMock(
   req: IdiomExplainRequest
@@ -62,16 +118,19 @@ export async function fetchIdiomExplainMock(
 }
 
 /**
- * 未來要接後端 API / LLM 時，可以改為類似：
- *
- * export async function fetchIdiomExplain(req: IdiomExplainRequest): Promise<IdiomExplain> {
- *   const res = await fetch('/api/idiom/explain', {
- *     method: 'POST',
- *     headers: { 'Content-Type': 'application/json' },
- *     body: JSON.stringify(req),
- *   });
- *   if (!res.ok) throw new Error('API error');
- *   return res.json();
- * }
+ * 是否使用後端 API（有設 VITE_USE_MOCK=true 時用 mock，否則用後端）。
  */
+function useMock(): boolean {
+  return import.meta.env.VITE_USE_MOCK === "true";
+}
+
+/**
+ * 對外使用的查詢函式：有開 mock 時用 mock，否則呼叫後端。
+ */
+export async function fetchIdiomExplainOrMock(
+  req: IdiomExplainRequest
+): Promise<IdiomExplain> {
+  if (useMock()) return fetchIdiomExplainMock(req);
+  return fetchIdiomExplain(req);
+}
 

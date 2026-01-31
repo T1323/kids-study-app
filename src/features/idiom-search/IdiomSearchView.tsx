@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { IdiomSearchForm } from "./components/IdiomSearchForm";
 import { IdiomResultCard } from "./components/IdiomResultCard";
+import { ModelSettings, type ModelSettingsValue } from "./components/ModelSettings";
 import { IdiomExplain, StudyLevel } from "./types";
-import { fetchIdiomExplainMock } from "./services/idiomService";
+import { fetchIdiomExplainOrMock } from "./services/idiomService";
+
+const defaultModelSettings: ModelSettingsValue = {
+  providerId: "google",
+  apiKey: "",
+  customBaseURL: "",
+  customModel: "",
+};
 
 export const IdiomSearchView = () => {
   const [level, setLevel] = useState<StudyLevel>("junior");
+  const [modelSettings, setModelSettings] = useState<ModelSettingsValue>(defaultModelSettings);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<IdiomExplain | null>(null);
@@ -15,8 +24,15 @@ export const IdiomSearchView = () => {
     setError(null);
     setResult(null);
     try {
-      // 這裡目前使用 mock，未來可改為呼叫真正後端 API
-      const data = await fetchIdiomExplainMock({ idiom, level });
+      const req = {
+        idiom,
+        level,
+        apiKey: modelSettings.apiKey.trim() || undefined,
+        provider: modelSettings.providerId || undefined,
+        model: modelSettings.providerId === "custom" ? modelSettings.customModel.trim() || undefined : undefined,
+        baseURL: modelSettings.providerId === "custom" ? modelSettings.customBaseURL.trim() || undefined : undefined,
+      };
+      const data = await fetchIdiomExplainOrMock(req);
       setResult(data);
     } catch (e) {
       console.error(e);
@@ -51,6 +67,14 @@ export const IdiomSearchView = () => {
           </button>
         </div>
       </header>
+
+      <div className="model-settings-wrap">
+        <ModelSettings
+          value={modelSettings}
+          onChange={setModelSettings}
+          disabled={loading}
+        />
+      </div>
 
       <IdiomSearchForm onSearch={handleSearch} loading={loading} />
 
