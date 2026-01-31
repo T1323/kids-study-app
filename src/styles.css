@@ -1,0 +1,312 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --bg: #f6f5ff;
+  --bg-card: #ffffff;
+  --border-subtle: #e0ddff;
+  --primary: #635bff;
+  --primary-soft: #ecebff;
+  --primary-strong: #4b43d6;
+  --accent: #ffb347;
+  --text-main: #222222;
+  --text-soft: #555555;
+  --danger: #e5484d;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, #fff7e6, #f6f5ff 45%, #e8f6ff);
+  color: var(--text-main);
+}
+
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  padding: 1.5rem 1.5rem 1rem;
+}
+
+.app-title-block {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.app-title-block h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-title-block h1::after {
+  content: "學習變好玩！";
+  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffb347, #ffcc33);
+  color: #4a2800;
+}
+
+.app-subtitle {
+  margin: 0.4rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+
+.app-main {
+  flex: 1;
+  padding: 0 1.5rem 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.app-footer {
+  padding: 0.8rem 1.5rem 1.2rem;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  text-align: center;
+}
+
+.card {
+  width: 100%;
+  max-width: 960px;
+  background: var(--bg-card);
+  border-radius: 24px;
+  padding: 1.6rem 1.6rem 1.8rem;
+  box-shadow: 0 18px 45px rgba(64, 64, 120, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+}
+
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.card-description {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-soft);
+}
+
+.level-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.level-label {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.level-btn {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.level-btn.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 7px 18px rgba(99, 91, 255, 0.45);
+}
+
+.level-btn:not(.active):hover {
+  background: #dedbff;
+}
+
+.idiom-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.idiom-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.idiom-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.idiom-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  padding: 0.7rem 1rem;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.idiom-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px rgba(99, 91, 255, 0.4);
+}
+
+.primary-btn {
+  border-radius: 999px;
+  border: none;
+  padding: 0.7rem 1.4rem;
+  background: linear-gradient(135deg, var(--primary), #8e70ff);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  box-shadow: 0 12px 24px rgba(99, 91, 255, 0.4);
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out,
+    filter 0.12s ease-out;
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 16px 32px rgba(99, 91, 255, 0.5);
+}
+
+.primary-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 16px rgba(99, 91, 255, 0.35);
+}
+
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+.helper-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.error-banner {
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  background: #ffecec;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.results-section {
+  margin-top: 1.2rem;
+}
+
+.idiom-card {
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background: #fbfbff;
+  padding: 1rem 1.1rem 1.1rem;
+}
+
+.idiom-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.8rem;
+}
+
+.idiom-title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.idiom-zhuyin {
+  font-size: 1rem;
+  color: var(--text-soft);
+}
+
+.idiom-section {
+  margin-bottom: 0.7rem;
+}
+
+.idiom-section h4 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+}
+
+.idiom-section p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.example-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.example-item {
+  padding: 0.5rem 0.6rem;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px dashed rgba(151, 151, 255, 0.46);
+}
+
+.example-zh {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.tips-section {
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 0.6rem;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 1.3rem 1.1rem 1.4rem;
+    border-radius: 18px;
+  }
+
+  .app-main {
+    padding: 0 1rem 1.5rem;
+  }
+}
+
