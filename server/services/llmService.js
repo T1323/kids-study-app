@@ -2,8 +2,8 @@ import OpenAI from "openai";
 import { PROVIDERS } from "../config/providers.js";
 
 const defaultClient = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL || undefined,
+  apiKey: process.env.LLM_API_KEY,
+  baseURL: process.env.LLM_BASE_URL || undefined,
 });
 
 const LEVEL_DESC = {
@@ -22,7 +22,7 @@ function getClientAndModel(options = {}) {
   if (trimmedKey && (providerId || (overrideBaseURL && overrideModel))) {
     const provider = providerId && PROVIDERS[providerId];
     const baseURL = overrideBaseURL || (provider?.baseURL ?? "");
-    const model = overrideModel || provider?.model || process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const model = overrideModel || provider?.model || process.env.LLM_MODEL || "gpt-4o-mini";
     if (baseURL && model) {
       const client = new OpenAI({
         apiKey: trimmedKey,
@@ -34,7 +34,7 @@ function getClientAndModel(options = {}) {
 
   return {
     client: defaultClient,
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    model: process.env.LLM_MODEL || "gpt-4o-mini",
   };
 }
 

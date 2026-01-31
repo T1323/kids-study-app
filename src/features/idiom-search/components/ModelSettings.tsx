@@ -82,38 +82,8 @@ export function ModelSettings({ value, onChange, disabled }: Props) {
   return (
     <div className="model-settings">
       <div className="model-settings-row">
-        <label className="model-settings-label" htmlFor="model-provider">
-          模型 / 服務
-        </label>
-        <select
-          id="model-provider"
-          className="model-settings-select"
-          value={value.providerId}
-          onChange={(e) => handleProviderChange(e.target.value)}
-          disabled={disabled}
-          aria-label="選擇模型服務"
-        >
-          {list.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        {currentProvider?.getKeyUrl && (
-          <a
-            className="model-settings-link"
-            href={currentProvider.getKeyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            取得 API Key
-          </a>
-        )}
-      </div>
-
-      <div className="model-settings-row">
         <label className="model-settings-label" htmlFor="model-apikey">
-          API Key（選填，有填則以此 Key 呼叫所選服務）
+          API Key（選填，若後端已設定則可留空）
         </label>
         <input
           id="model-apikey"
