@@ -13,7 +13,7 @@ const defaultModelSettings: ModelSettingsValue = {
 };
 
 export const IdiomSearchView = () => {
-  const [level, setLevel] = useState<StudyLevel>("junior");
+  const [level, setLevel] = useState<StudyLevel>("senior");
   const [modelSettings, setModelSettings] = useState<ModelSettingsValue>(defaultModelSettings);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

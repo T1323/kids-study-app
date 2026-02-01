@@ -1,107 +1,107 @@
 # 成語小小學堂（kids-study-app）
 
 給 6 歲與 11 歲孩子使用的成語查詢網頁工具。  
-目前實作「成語查詢」（由後端 LLM 生成解釋、用法、例句與注音），之後可擴充「測驗」等功能。
+實作「成語查詢」，由後端 LLM 生成解釋、用法、例句與注音。支援 Vercel Serverless 部署。
 
-## 介面上的模型與 API Key
+## 專案特色
 
-- **模型 / 服務**：可在介面下拉選單選擇預設的免費或付費服務（Google Gemini、Groq、DeepSeek、OpenAI、自訂）。
-- **API Key**：選填。有填時會與所選服務一併送給後端，僅用於該次請求，後端不儲存。
-- **自動判斷**：貼上或輸入 API Key 後（失焦或貼上時），會依 Key 前綴自動推測服務並更新選單（例如 `AIza` → Google、`gsk_` → Groq、`sk-` → OpenAI）。
-- **自訂**：選「自訂」時可輸入 API 網址與模型名稱，適合其他 OpenAI 相容服務。
+*   **前後端分離但整合**：使用 React (Vite) 前端 + Express 後端，並透過 `api/` 目錄整合為 Serverless 架構，適合部署於 Vercel。
+*   **隱私安全**：後端 **不儲存任何 API Key**，Key 由前端使用者輸入並隨請求發送，保障使用者隱私。
+*   **本地記憶 Key**：前端提供「在本地記住 Key」功能，將 Key 儲存於瀏覽器 Local Storage，方便重複使用。
+*   **智慧判斷**：
+    *   **成語修正**：自動補全輸入不完整的成語（例如輸入「畫蛇」會顯示「畫蛇添足」）。
+    *   **非成語識別**：若輸入俗諺或流行語（如「早安」），會顯示解釋但標示為「非標準成語」。
+    *   **無效輸入**：若輸入亂碼，會顯示錯誤訊息。
+*   **Mock 降級機制**：若未輸入 Key 或 Key 無效，系統會自動降級顯示 Mock 範例資料，引導使用者。
 
-## 推薦的免費模型 / 服務
+## 快速開始
 
-以下為預設選單中的選項，多數提供免費額度，需自行至官網取得 API Key：
+### 1. 安裝依賴
 
-| 服務 | 說明 | 取得 Key |
-|------|------|----------|
-| **Google Gemini（免費額度）** | 每日約 1,500 次、多模型，適合一般使用 | [Google AI Studio](https://aistudio.google.com/apikey) |
-| **Groq（免費額度）** | 回應快、每日約 14,400 次，Llama 等模型 | [Groq Console](https://console.groq.com/keys) |
-| **DeepSeek（免費額度）** | 每日約 50 萬 token，成本低 | [DeepSeek Platform](https://platform.deepseek.com/api_keys) |
-| **OpenAI** | 需付費，無免費 API 額度 | [OpenAI API Keys](https://platform.openai.com/api-keys) |
-
-未填 API Key 時，後端會使用 `server/.env` 的 `OPENAI_API_KEY`（若有的話）；前端設 `VITE_USE_MOCK=true` 則完全不呼叫後端，改為 mock 資料。
-
-## 架構概覽
-
-- **前端**（Vite + React + TypeScript）
-  - `src/features/idiom-search`：成語查詢、**模型選擇與 API Key 輸入**、表單。
-  - `idiomService.ts`：呼叫 `GET /api/providers`、`GET /api/providers/detect`、`POST /api/idiom/explain`；可設 `VITE_USE_MOCK=true` 改回 mock。
-
-- **後端**（Node.js + Express，`server/`）
-  - `GET /api/providers`：回傳可選的模型清單（id、name、取得 Key 連結）。
-  - `GET /api/providers/detect?key=xxx`：依 Key 前綴推測 provider。
-  - `POST /api/idiom/explain`：接收 `{ idiom, level, apiKey?, provider?, model?, baseURL? }`，由 LLM 生成成語說明。
-  - `server/config/providers.js`：預設服務的 baseURL、model、取得 Key 連結。
-  - `server/services/llmService.js`：依請求的 apiKey/provider 建立客戶端並呼叫 OpenAI 相容 API。
-
-## 如何進行：後端 LLM Service
-
-### 1. 安裝後端依賴
-
-```bash
-cd server
-npm install
-```
-
-### 2. 設定環境變數
-
-在 `server/` 目錄複製範例並填入你的 API Key：
-
-```bash
-cp .env.example .env
-```
-
-編輯 `server/.env`：
-
-- **OPENAI_API_KEY**：必填，你的 OpenAI（或相容服務）API Key。
-- **OPENAI_BASE_URL**：選填。若用 DeepSeek 等，可設為 `https://api.deepseek.com`。
-- **OPENAI_MODEL**：選填，預設 `gpt-4o-mini`。可改為 `gpt-4o`、`deepseek-chat` 等。
-- **PORT**：選填，預設 `3000`。
-
-### 3. 啟動後端
-
-```bash
-cd server
-npm run dev
-```
-
-會看到「後端已啟動：http://localhost:3000」。
-
-### 4. 啟動前端並呼叫後端
-
-在專案根目錄：
+專案已合併依賴，僅需在根目錄執行：
 
 ```bash
 npm install
-npm run dev
 ```
 
-瀏覽器開啟 `http://localhost:5173`，輸入成語查詢即會呼叫後端，由 LLM 生成說明。
+### 2. 環境變數設定
 
-- 若暫時不想用後端（或後端未啟動），可在專案根目錄建立 `.env` 並設 `VITE_USE_MOCK=true`，前端會改回 mock 資料。
-- 若後端跑在不同網址或 port，可設 `VITE_API_BASE_URL=http://你的後端網址`（例如 `http://localhost:3000`）。
+複製範例檔並建立 `.env`：
 
-## 開發指令整理
+```bash
+cp server/.env.example .env
+```
 
-| 用途       | 指令 |
-|------------|------|
-| 只跑前端（mock） | 根目錄 `npm run dev`，並設 `VITE_USE_MOCK=true` |
-| 跑前端 + 後端（LLM） | 先 `cd server && npm run dev`，再在根目錄 `npm run dev` |
-| 後端正式執行 | `cd server && npm start` |
+編輯 `.env` (主要設定 Base URL 與 Model，**API Key 留空即可**，由前端輸入)：
 
-## 後端 API 規格
+```env
+# LLM 服務設定 (例如 Google Gemini)
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-2.0-flash
 
-- **GET /api/providers**  
-  Response：`[{ id, name, getKeyUrl }]`，供前端下拉選單與「取得 API Key」連結。
+# API Key 不需在此設定，由前端傳入
+# LLM_API_KEY=
+```
 
-- **GET /api/providers/detect?key=xxx**  
-  Response：`{ provider: "google" | "groq" | "openai" | null }`，依 Key 前綴推測。
+### 3. 本地開發
 
-- **POST /api/idiom/explain**
-  - Request body：`{ idiom: string, level: "junior" | "senior", apiKey?: string, provider?: string, model?: string, baseURL?: string }`
-  - 若有 `apiKey`，會與 `provider`（或自動偵測）一併使用；`provider === "custom"` 時需傳 `model`、`baseURL`。
-  - Response：與前端 `IdiomExplain` 型別相同。
+同時啟動前端與後端：
 
-之後要新增預設服務或調整 prompt，可改 `server/config/providers.js` 與 `server/services/llmService.js`。
+1. **啟動後端** (監聽 Port 3000)：
+   ```bash
+   npm run server
+   ```
+
+2. **啟動前端** (監聽 Port 5173)：
+   開啟新的終端機視窗：
+   ```bash
+   npm run dev
+   ```
+
+瀏覽器開啟 `http://localhost:5173` 即可使用。
+
+## 部署至 Vercel
+
+本專案已配置 `vercel.json` 與 `api/index.js`，可直接部署：
+
+1. 將專案 Push 到 GitHub。
+2. 在 Vercel Dashboard 匯入專案。
+3. Vercel 會自動識別 Vite 框架設定。
+4. **重要**：若您希望提供預設的後端 Key (讓使用者免輸入)，可在 Vercel 的 Environment Variables 設定 `LLM_API_KEY` (但需修改後端程式碼以讀取環境變數，目前預設架構為純前端傳入)。
+5. 部署完成！
+
+## 架構說明
+
+- **前端** (`src/`)：
+  - `IdiomSearchView.tsx`：主介面，處理搜尋邏輯、錯誤處理與 Mock 降級。
+  - `ModelSettings.tsx`：API Key 輸入與本地儲存功能。
+  - `idiomService.ts`：負責呼叫後端 API。
+
+- **後端** (`server/` & `api/`)：
+  - `api/index.js`：Vercel Serverless 入口。
+  - `server/services/llmService.js`：處理 Prompt、呼叫 LLM、解析 JSON 結果 (含成語判斷邏輯)。
+  - `server/routes/idiom.js`：API 路由處理。
+
+## API 規格
+
+**POST /api/idiom/explain**
+
+- **Request Body**:
+  ```json
+  {
+    "idiom": "查詢字串",
+    "level": "junior" | "senior",
+    "apiKey": "使用者提供的 Key"
+  }
+  ```
+
+- **Response**:
+  ```json
+  {
+    "idiom": "完整成語名稱",
+    "is_idiom": true, // 是否為標準成語
+    "zhuyin": "注音",
+    "meaning": "解釋",
+    "examples": [...]
+  }
+  ```
