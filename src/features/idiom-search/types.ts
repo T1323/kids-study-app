@@ -12,6 +12,8 @@ export interface IdiomExplain {
   examples: IdiomExample[];
   tips?: string;
   level: StudyLevel;
+  /** 是否為標準成語 */
+  is_idiom?: boolean;
 }
 
 export interface IdiomExplainRequest {

@@ -1,11 +1,6 @@
 import OpenAI from "openai";
 import { PROVIDERS } from "../config/providers.js";
 
-const defaultClient = new OpenAI({
-  apiKey: process.env.LLM_API_KEY,
-  baseURL: process.env.LLM_BASE_URL || undefined,
-});
-
 const LEVEL_DESC = {
   junior: "低年級（用詞簡單、句子短、適合約 6 歲）",
   senior: "高年級（可稍難、句子較完整、適合約 11 歲）",
@@ -19,7 +14,11 @@ function getClientAndModel(options = {}) {
   const { apiKey, providerId, model: overrideModel, baseURL: overrideBaseURL } = options;
   const trimmedKey = typeof apiKey === "string" ? apiKey.trim() : "";
 
-  if (trimmedKey && (providerId || (overrideBaseURL && overrideModel))) {
+  if (!trimmedKey) {
+    throw new Error("請提供 API Key (API Key is required)");
+  }
+
+  if (providerId || (overrideBaseURL && overrideModel)) {
     const provider = providerId && PROVIDERS[providerId];
     const baseURL = overrideBaseURL || (provider?.baseURL ?? "");
     const model = overrideModel || provider?.model || process.env.LLM_MODEL || "gpt-4o-mini";
@@ -32,8 +31,12 @@ function getClientAndModel(options = {}) {
     }
   }
 
+  // 若未指定 provider，使用後端預設的 BaseURL (例如 Gemini)，但使用前端傳來的 Key
   return {
-    client: defaultClient,
+    client: new OpenAI({
+      apiKey: trimmedKey,
+      baseURL: process.env.LLM_BASE_URL || undefined,
+    }),
     model: process.env.LLM_MODEL || "gpt-4o-mini",
   };
 }
@@ -50,16 +53,25 @@ function buildPrompt(idiom, level) {
 請「只」回傳一個 JSON 物件，不要其他說明或 markdown。格式必須嚴格如下（含欄位名稱與雙引號）：
 
 {
-  "idiom": "${idiom}",
-  "zhuyin": "每個字的注音，字與字之間空一格，例如：ㄏㄨㄚˋ ㄕㄜˊ ㄊㄧㄢ ㄗㄨˊ",
+  "status": "found" 或 "not_found",
+  "is_idiom": true 或 false,
+  "idiom": "完整的詞彙或成語名稱 (若輸入不完整請自動補全，必須修正為正確全名)",
+  "zhuyin": "每個字的注音，字與字之間空一格",
   "meaning": "一句或兩句的解釋，讓小朋友看得懂",
-  "usage": "簡短用法說明（何時會用到這個成語）",
+  "usage": "簡短用法說明（何時會用到這個詞）",
   "examples": [
     { "zh": "一句中文例句" },
     { "zh": "第二句中文例句" }
   ],
-  "tips": "一句小提醒或延伸學習（可選，沒有可給空字串）"
+  "tips": "一句小提醒或延伸學習（可選）"
 }
+
+填寫規則：
+1. 若輸入完全無意義或無法辨識，status 填 "not_found"，其餘欄位可省略。
+2. 若輸入具有意義（包含成語、俗諺、流行語、普通詞彙）：
+   - status 填 "found"。
+   - 若是標準成語，is_idiom 填 true。
+   - 若是俗諺、流行語或普通詞彙（如「早安」），is_idiom 必須填 false，並在 tips 欄位說明它為何不是成語。
 
 注意：
 - 全部使用繁體中文。
@@ -109,8 +121,13 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
     throw new Error("LLM 回傳無法解析為 JSON：" + content.slice(0, 200));
   }
 
+  if (data.status === "not_found") {
+    throw new Error("找不到相近成語");
+  }
+
   return {
     idiom: String(data.idiom ?? idiom),
+    is_idiom: typeof data.is_idiom === "boolean" ? data.is_idiom : true, // 預設 true 以相容舊格式
     zhuyin: data.zhuyin ? String(data.zhuyin) : undefined,
     meaning: String(data.meaning ?? ""),
     usage: data.usage ? String(data.usage) : undefined,

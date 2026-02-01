@@ -70,7 +70,8 @@ export async function fetchIdiomExplainMock(
   // 模擬非同步呼叫
   await new Promise((resolve) => setTimeout(resolve, 600));
 
-  const baseIdiom = req.idiom || "畫蛇添足";
+  // 因為是 Mock 範例資料，內容固定為「畫蛇添足」，所以標題也必須固定，避免使用者輸入 A 卻顯示 B 的解釋
+  const baseIdiom = "畫蛇添足";
   const level = req.level;
 
   if (level === "junior") {

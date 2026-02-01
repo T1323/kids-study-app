@@ -17,9 +17,10 @@ app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, () => {
-  console.log(`後端已啟動：http://localhost:${PORT}`);
-  if (!process.env.LLM_API_KEY) {
-    console.warn("提醒：未設定 LLM_API_KEY，成語說明 API 會失敗。請在 server/.env 設定。");
-  }
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`後端已啟動：http://localhost:${PORT}`);
+  });
+}
+
+export default app;

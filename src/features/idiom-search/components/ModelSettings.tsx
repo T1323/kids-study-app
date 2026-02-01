@@ -24,6 +24,7 @@ export function ModelSettings({ value, onChange, disabled }: Props) {
   const detectLock = useRef(false);
 
   useEffect(() => {
+    // 1. Load Providers
     let cancelled = false;
     fetchProviders()
       .then((arr) => {
@@ -35,10 +36,24 @@ export function ModelSettings({ value, onChange, disabled }: Props) {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
+    // 2. Load Saved Key
+    const savedKey = localStorage.getItem("user_api_key");
+    if (savedKey) {
+      onChange({ ...value, apiKey: savedKey });
+      // Trigger detection for the saved key
+      fetchDetectProvider(savedKey).then(({ provider }) => {
+        if (!cancelled && provider) {
+          onChange({ ...value, apiKey: savedKey, providerId: provider });
+        }
+      });
+    }
+
     return () => {
       cancelled = true;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const handleProviderChange = (providerId: string) => {
     onChange({ ...value, providerId });
@@ -46,6 +61,17 @@ export function ModelSettings({ value, onChange, disabled }: Props) {
 
   const handleApiKeyChange = (apiKey: string) => {
     onChange({ ...value, apiKey });
+  };
+
+  const handleSaveKey = () => {
+    const key = value.apiKey.trim();
+    if (key) {
+      localStorage.setItem("user_api_key", key);
+      alert("API Key 已儲存至本地！");
+    } else {
+      localStorage.removeItem("user_api_key");
+      alert("已清除本地儲存的 API Key");
+    }
   };
 
   const handleApiKeyBlur = () => {
@@ -85,19 +111,34 @@ export function ModelSettings({ value, onChange, disabled }: Props) {
         <label className="model-settings-label" htmlFor="model-apikey">
           API Key（選填，若後端已設定則可留空）
         </label>
-        <input
-          id="model-apikey"
-          className="model-settings-input"
-          type="password"
-          placeholder="貼上或輸入 API Key，會自動判斷服務"
-          value={value.apiKey}
-          onChange={(e) => handleApiKeyChange(e.target.value)}
-          onBlur={handleApiKeyBlur}
-          onPaste={() => setTimeout(handleApiKeyBlur, 0)}
-          disabled={disabled}
-          autoComplete="off"
-          aria-label="API Key"
-        />
+        <div style={{ display: "flex", gap: "8px" }}>
+          <input
+            id="model-apikey"
+            className="model-settings-input"
+            type="password"
+            placeholder="貼上或輸入 API Key，會自動判斷服務"
+            value={value.apiKey}
+            onChange={(e) => handleApiKeyChange(e.target.value)}
+            onBlur={handleApiKeyBlur}
+            onPaste={() => setTimeout(handleApiKeyBlur, 0)}
+            disabled={disabled}
+            autoComplete="off"
+            aria-label="API Key"
+            style={{ flex: 1 }}
+          />
+          <button
+            type="button"
+            onClick={handleSaveKey}
+            disabled={disabled}
+            style={{
+              whiteSpace: "nowrap",
+              padding: "0 12px",
+              cursor: "pointer",
+            }}
+          >
+            在本地記住 Key
+          </button>
+        </div>
       </div>
 
       {isCustom && (
