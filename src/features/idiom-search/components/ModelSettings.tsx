@@ -109,7 +109,7 @@ export function ModelSettings({ value, onChange, disabled }: Props) {
     <div className="model-settings">
       <div className="model-settings-row">
         <label className="model-settings-label" htmlFor="model-apikey">
-          API Key（選填，若後端已設定則可留空）
+          API Key
         </label>
         <div style={{ display: "flex", gap: "8px" }}>
           <input

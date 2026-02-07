@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { IdiomSearchForm } from "./components/IdiomSearchForm";
 import { IdiomResultCard } from "./components/IdiomResultCard";
 import { ModelSettings, type ModelSettingsValue } from "./components/ModelSettings";
 import { IdiomExplain, StudyLevel } from "./types";
 import { fetchIdiomExplainOrMock, fetchIdiomExplainMock } from "./services/idiomService";
+import { searchFile, readFile, saveFile, FILE_NAME, type AppSettings } from "../sync/services/googleDrive";
 
 const defaultModelSettings: ModelSettingsValue = {
   providerId: "google",
@@ -12,13 +13,85 @@ const defaultModelSettings: ModelSettingsValue = {
   customModel: "",
 };
 
-export const IdiomSearchView = () => {
+interface Props {
+  accessToken?: string | null;
+}
+
+export const IdiomSearchView = ({ accessToken }: Props) => {
   const [level, setLevel] = useState<StudyLevel>("senior");
   const [modelSettings, setModelSettings] = useState<ModelSettingsValue>(defaultModelSettings);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [result, setResult] = useState<IdiomExplain | null>(null);
+
+  // Sync State
+  const [syncStatus, setSyncStatus] = useState<"idle" | "loading" | "saving" | "saved" | "error">("idle");
+  const skipNextSave = useRef(false);
+  const saveTimer = useRef<number | null>(null);
+
+  // 1. Load Settings from Google Drive on Login
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const loadSettings = async () => {
+      setSyncStatus("loading");
+      try {
+        const fileId = await searchFile(accessToken, FILE_NAME);
+        if (fileId) {
+          const data = await readFile(accessToken, fileId);
+          if (data) {
+            console.log("Loaded settings from Drive:", data);
+            skipNextSave.current = true; // Avoid triggering save immediately
+            setLevel(data.level);
+            setModelSettings(data.modelSettings);
+            setSyncStatus("saved");
+          }
+        } else {
+          // File not found, will be created on first save
+          setSyncStatus("idle");
+        }
+      } catch (err) {
+        console.error("Failed to load settings from Drive", err);
+        setSyncStatus("error");
+      }
+    };
+
+    loadSettings();
+  }, [accessToken]);
+
+  // 2. Auto-Save Settings (Debounced)
+  useEffect(() => {
+    if (!accessToken) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
+
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+    }
+
+    setSyncStatus("saving");
+    saveTimer.current = window.setTimeout(async () => {
+      try {
+        const settings: AppSettings = {
+          level,
+          modelSettings,
+          lastUpdated: Date.now(),
+        };
+        await saveFile(accessToken, settings);
+        setSyncStatus("saved");
+      } catch (err) {
+        console.error("Failed to save settings to Drive", err);
+        setSyncStatus("error");
+      }
+    }, 2000); // 2 seconds debounce
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [level, modelSettings, accessToken]);
 
   const handleSearch = async (idiom: string) => {
     setLoading(true);
@@ -72,7 +145,13 @@ export const IdiomSearchView = () => {
     <section className="card">
       <header className="card-header">
         <div>
-          <h2>成語查詢</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <h2>成語查詢</h2>
+            {syncStatus === "loading" && <span style={{ fontSize: "0.8rem", color: "#666" }}>🔄 同步設定中...</span>}
+            {syncStatus === "saving" && <span style={{ fontSize: "0.8rem", color: "#666" }}>💾 儲存設定中...</span>}
+            {syncStatus === "saved" && <span style={{ fontSize: "0.8rem", color: "green" }}>✅ 設定已同步</span>}
+            {syncStatus === "error" && <span style={{ fontSize: "0.8rem", color: "red" }}>⚠️ 同步失敗</span>}
+          </div>
           <p className="card-description">
             輸入想查的成語，系統會提供解釋、用法與例句。
           </p>

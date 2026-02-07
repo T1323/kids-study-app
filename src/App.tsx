@@ -29,7 +29,7 @@ export const App = () => {
         </div>
       </header>
       <main className="app-main">
-        <IdiomSearchView />
+        <IdiomSearchView accessToken={accessToken} />
       </main>
     </div>
   );
