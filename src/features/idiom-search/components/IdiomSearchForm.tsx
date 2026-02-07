@@ -6,12 +6,6 @@ interface Props {
   initialValue?: string;
 }
 
-interface Props {
-  onSearch: (idiom: string) => void;
-  loading: boolean;
-  initialValue?: string;
-}
-
 export const IdiomSearchForm = ({ onSearch, loading, initialValue = "" }: Props) => {
   const [value, setValue] = useState(initialValue);
 
