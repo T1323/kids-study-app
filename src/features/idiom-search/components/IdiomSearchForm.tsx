@@ -1,12 +1,25 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 interface Props {
   onSearch: (idiom: string) => void;
   loading: boolean;
+  initialValue?: string;
 }
 
-export const IdiomSearchForm = ({ onSearch, loading }: Props) => {
-  const [value, setValue] = useState("");
+interface Props {
+  onSearch: (idiom: string) => void;
+  loading: boolean;
+  initialValue?: string;
+}
+
+export const IdiomSearchForm = ({ onSearch, loading, initialValue = "" }: Props) => {
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    if (initialValue) {
+      setValue(initialValue);
+    }
+  }, [initialValue]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

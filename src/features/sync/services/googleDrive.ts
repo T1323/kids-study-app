@@ -1,4 +1,8 @@
-export const FILE_NAME = "kids-study-app-settings.json";
+export const SETTINGS_FILE_NAME = "kids-study-app-settings.json";
+export const PROGRESS_FILE_NAME = "kids-study-app-progress.json";
+
+// Keep for backward compatibility during refactor, but better to use specific constants
+export const FILE_NAME = SETTINGS_FILE_NAME;
 
 export interface AppSettings {
   level: "junior" | "senior";
@@ -9,6 +13,19 @@ export interface AppSettings {
     customModel: string;
   };
   lastUpdated: number;
+}
+
+export interface IdiomProgress {
+  idiom: string;
+  queryTime: number; // Timestamp
+  proficiency: number; // 0-100 (default 0)
+  lastTestTime: number; // Timestamp (default 0)
+  queryCount: number; // How many times queried
+}
+
+export interface UserProgressData {
+  idioms: Record<string, IdiomProgress>;
+  lastSynced: number;
 }
 
 export const searchFile = async (accessToken: string, filename: string): Promise<string | null> => {
@@ -32,7 +49,7 @@ export const searchFile = async (accessToken: string, filename: string): Promise
   }
 };
 
-export const readFile = async (accessToken: string, fileId: string): Promise<AppSettings | null> => {
+export const readFile = async <T>(accessToken: string, fileId: string): Promise<T | null> => {
   const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
 
   try {
@@ -48,7 +65,7 @@ export const readFile = async (accessToken: string, fileId: string): Promise<App
   }
 };
 
-export const createFile = async (accessToken: string, filename: string, content: AppSettings): Promise<string | null> => {
+export const createFile = async <T>(accessToken: string, filename: string, content: T): Promise<string | null> => {
   const metadata = {
     name: filename,
     mimeType: "application/json",
@@ -82,7 +99,7 @@ export const createFile = async (accessToken: string, filename: string, content:
   }
 };
 
-export const updateFile = async (accessToken: string, fileId: string, content: AppSettings): Promise<void> => {
+export const updateFile = async <T>(accessToken: string, fileId: string, content: T): Promise<void> => {
   const url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
 
   try {
@@ -99,11 +116,24 @@ export const updateFile = async (accessToken: string, fileId: string, content: A
   }
 };
 
-export const saveFile = async (accessToken: string, content: AppSettings): Promise<void> => {
-  const fileId = await searchFile(accessToken, FILE_NAME);
+// Generic save function
+export const saveFileToDrive = async <T>(accessToken: string, filename: string, content: T): Promise<void> => {
+  const fileId = await searchFile(accessToken, filename);
   if (fileId) {
     await updateFile(accessToken, fileId, content);
   } else {
-    await createFile(accessToken, FILE_NAME, content);
+    await createFile(accessToken, filename, content);
   }
 };
+
+// Specific save functions
+export const saveSettings = async (accessToken: string, content: AppSettings): Promise<void> => {
+  return saveFileToDrive(accessToken, SETTINGS_FILE_NAME, content);
+};
+
+export const saveProgress = async (accessToken: string, content: UserProgressData): Promise<void> => {
+  return saveFileToDrive(accessToken, PROGRESS_FILE_NAME, content);
+};
+
+// Deprecated: Alias for backward compatibility if needed, but prefer saveSettings
+export const saveFile = saveSettings; 
