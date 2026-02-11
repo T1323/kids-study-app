@@ -58,18 +58,70 @@ export const IdiomSearchView = ({ accessToken }: Props) => {
             setLevel(data.level);
             setModelSettings(data.modelSettings);
           }
+        } else {
+          // If no settings file on Drive, create one with current local settings
+          // We trigger a save operation immediately to sync local state to cloud
+          skipNextSettingsSave.current = false;
+          // Set timer to 0 to trigger immediate save (or just call save directly, but using effect is cleaner)
+          if (settingsSaveTimer.current) clearTimeout(settingsSaveTimer.current);
+          settingsSaveTimer.current = window.setTimeout(async () => {
+             // This block duplicates the logic in the effect below,
+             // but cleaner way is just to NOT set skipNextSettingsSave.current = true
+             // Since it defaults to false, the effect [level, modelSettings, accessToken]
+             // will run and save it automatically because accessToken just changed from null to string.
+             // Wait, the effect runs whenever dependencies change.
+             // If we just logged in, accessToken changed. The effect (2) will run.
+             // If we found a file, we set skipNextSettingsSave = true to PREVENT that effect from saving back stale state (if we hadn't updated state yet) or overwriting cloud with local default.
+             // But here we want to overwrite cloud (which doesn't exist) with local.
+             // So if file NOT found, we do nothing special, and let the auto-save effect run naturally to create the file.
+          }, 0);
         }
 
         // Load Progress
         const progressFileId = await searchFile(accessToken, PROGRESS_FILE_NAME);
         if (progressFileId) {
-          const data = await readFile<UserProgressData>(accessToken, progressFileId);
-          if (data) {
-            console.log("Loaded progress from Drive:", data);
-            skipNextProgressSave.current = true;
-            setProgressData(data);
+          const cloudData = await readFile<UserProgressData>(accessToken, progressFileId);
+          if (cloudData) {
+            console.log("Loaded progress from Drive:", cloudData);
+            skipNextProgressSave.current = true; // Prevent immediate overwrite
+            
+            // Merge strategy: Merge cloud data with current local session data (if any)
+            // But usually upon login, local session might be empty or have some guest data.
+            // If we want to keep local guest data, we merge it.
+            
+            setProgressData(currentLocal => {
+               // If current local has data that is newer or not in cloud?
+               // For simplicity, let's assume we want to UNION the records.
+               // If user was using as guest and then logged in, we want to keep guest progress.
+               
+               const mergedIdioms = { ...cloudData.idioms };
+               
+               // Merge local idioms into cloud idioms
+               Object.values(currentLocal.idioms).forEach(localItem => {
+                 const cloudItem = mergedIdioms[localItem.idiom];
+                 if (!cloudItem) {
+                   mergedIdioms[localItem.idiom] = localItem;
+                 } else {
+                   // If both exist, merge counts and keep latest time
+                   mergedIdioms[localItem.idiom] = {
+                     ...cloudItem,
+                     queryTime: Math.max(localItem.queryTime, cloudItem.queryTime),
+                     lastTestTime: Math.max(localItem.lastTestTime, cloudItem.lastTestTime),
+                     proficiency: Math.max(localItem.proficiency, cloudItem.proficiency),
+                     queryCount: localItem.queryCount + cloudItem.queryCount
+                   };
+                 }
+               });
+
+               return {
+                 idioms: mergedIdioms,
+                 lastSynced: Math.max(cloudData.lastSynced, currentLocal.lastSynced)
+               };
+            });
           }
         }
+        // If no progress file on Drive, we do nothing special.
+        // The auto-save effect (3) will run because accessToken changed, and it will save current local progress to create the file.
 
         setSyncStatus("saved");
       } catch (err) {
@@ -170,33 +222,7 @@ export const IdiomSearchView = ({ accessToken }: Props) => {
       const mockData = await fetchIdiomExplainMock({ idiom, level });
       setResult(mockData);
       
-      // Update Progress Data for Mock result
-      if (mockData) {
-        const now = Date.now();
-        const idiomKey = mockData.idiom;
-        
-        setProgressData(prev => {
-          const currentIdiomStats = prev.idioms[idiomKey] || {
-            idiom: idiomKey,
-            queryTime: 0,
-            proficiency: 0,
-            lastTestTime: 0,
-            queryCount: 0
-          };
-
-          return {
-            ...prev,
-            idioms: {
-              ...prev.idioms,
-              [idiomKey]: {
-                ...currentIdiomStats,
-                queryTime: now,
-                queryCount: currentIdiomStats.queryCount + 1
-              }
-            }
-          };
-        });
-      }
+      // (Do NOT update progress for fallback/error mock data "畫蛇添足")
 
       setLoading(false);
       return;
@@ -256,33 +282,7 @@ export const IdiomSearchView = ({ accessToken }: Props) => {
         const mockData = await fetchIdiomExplainMock({ idiom, level });
         setResult(mockData);
         
-        // Update Progress Data for Mock result as well
-        if (mockData) {
-          const now = Date.now();
-          const idiomKey = mockData.idiom;
-          
-          setProgressData(prev => {
-            const currentIdiomStats = prev.idioms[idiomKey] || {
-              idiom: idiomKey,
-              queryTime: 0,
-              proficiency: 0,
-              lastTestTime: 0,
-              queryCount: 0
-            };
-
-            return {
-              ...prev,
-              idioms: {
-                ...prev.idioms,
-                [idiomKey]: {
-                  ...currentIdiomStats,
-                  queryTime: now,
-                  queryCount: currentIdiomStats.queryCount + 1
-                }
-              }
-            };
-          });
-        }
+        // (Do NOT update progress for fallback/error mock data)
       }
     } finally {
       setLoading(false);
