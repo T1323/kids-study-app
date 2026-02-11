@@ -1,0 +1,74 @@
+.model-settings {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  margin-bottom: 2rem;
+  border: 1px solid #e5e7eb;
+}
+
+.model-settings-loading {
+  text-align: center;
+  color: #6b7280;
+  padding: 2rem;
+}
+
+.model-settings-row {
+  margin-bottom: 1.5rem;
+}
+
+.model-settings-row:last-child {
+  margin-bottom: 0;
+}
+
+.model-settings-label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.model-settings-select,
+.model-settings-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #fff;
+  font-size: 1rem;
+  color: #1f2937;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.model-settings-select:focus,
+.model-settings-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.model-settings-select:disabled,
+.model-settings-input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+  color: #9ca3af;
+}
+
+.model-settings-help {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.model-settings-help a {
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.model-settings-help a:hover {
+  text-decoration: underline;
+}

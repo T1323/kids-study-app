@@ -138,3 +138,92 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
     level,
   };
 }
+
+/**
+ * 產生填空測驗題目的 Prompt。
+ */
+function buildQuizPrompt(idioms, level) {
+  const levelDesc = LEVEL_DESC[level];
+  const idiomListStr = idioms.join("、");
+
+  return `你是一位中文成語測驗出題老師，專門為國小學童（${levelDesc}）設計測驗。
+目標成語列表：${idiomListStr}
+
+請針對列表中的每個成語，設計一個「填空選擇題」。
+每個題目包含：
+1. 題目句子：一個使用該成語的情境句，但將該成語挖空（用 _____ 代替）。
+2. 選項：提供 4 個選項，其中一個是正確成語，另外三個是干擾選項（可以是真實成語或似是而非的詞，需具有誘答性）。
+3. 正確答案：即該成語。
+4. 解析：簡單說明為什麼選這個成語。
+
+請「只」回傳一個 JSON 陣列（Array），不要其他說明或 markdown。格式範例如下：
+[
+  {
+    "target": "畫蛇添足",
+    "question": "這篇文章已經寫得很完整了，你再加這一段反而像是_____，多此一舉。",
+    "options": ["畫蛇添足", "錦上添花", "雪中送炭", "井底之蛙"],
+    "answer": "畫蛇添足",
+    "explanation": "因為句子裡提到「多此一舉」，表示多做的反而不好，所以選「畫蛇添足」。"
+  }
+]
+
+注意：
+- 題目句子要通順，並能清楚暗示答案。
+- options 陣列內的順序請隨機排列，不要固定第一個是答案。
+- 請確保回傳的是合法的 JSON 格式。`;
+}
+
+/**
+ * 呼叫 LLM，產生測驗題目。
+ * @param {string[]} idioms
+ * @param {"junior"|"senior"} level
+ * @param {{ apiKey?: string, providerId?: string, model?: string, baseURL?: string }} options
+ */
+export async function generateQuizWithLLM(idioms, level, options = {}) {
+  const { client, model } = getClientAndModel(options);
+  const prompt = buildQuizPrompt(idioms, level);
+
+  const response = await client.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: "system",
+        content:
+          "你只回傳符合指定格式的 JSON 陣列，不輸出任何其他文字或 markdown 標記。",
+      },
+      { role: "user", content: prompt },
+    ],
+    temperature: 0.5,
+  });
+
+  const content = response.choices?.[0]?.message?.content?.trim();
+  if (!content) {
+    throw new Error("LLM 未回傳內容");
+  }
+
+  let jsonStr = content;
+  const codeBlock = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) {
+    jsonStr = codeBlock[1].trim();
+  }
+
+  let data;
+  try {
+    data = JSON.parse(jsonStr);
+  } catch (e) {
+    throw new Error("LLM 回傳無法解析為 JSON：" + content.slice(0, 200));
+  }
+
+  if (!Array.isArray(data)) {
+    throw new Error("LLM 回傳格式錯誤：預期為陣列");
+  }
+
+  return data.map((item, index) => ({
+    id: String(index + 1), // 簡單給個 ID
+    target: String(item.target || ""),
+    question: String(item.question || ""),
+    options: Array.isArray(item.options) ? item.options.map(String) : [],
+    answer: String(item.answer || ""),
+    explanation: String(item.explanation || ""),
+  }));
+}

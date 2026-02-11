@@ -22,9 +22,6 @@ export function GoogleLogin({ onLoginSuccess }: Props) {
       return;
     }
 
-    const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-    if (!script) return;
-
     // Check if google object is available (it might load async)
     const checkGoogle = setInterval(() => {
       if (window.google && window.google.accounts) {

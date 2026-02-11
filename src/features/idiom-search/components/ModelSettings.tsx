@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import "./ModelSettings.css";
 import {
   fetchProviders,
   fetchDetectProvider,
@@ -18,7 +19,12 @@ interface Props {
   disabled?: boolean;
 }
 
-export function ModelSettings({ value, onChange, disabled }: Props) {
+export function ModelSettings({ value = {
+  providerId: "google",
+  apiKey: "",
+  customBaseURL: "",
+  customModel: "",
+}, onChange, disabled }: Props) {
   const [list, setList] = useState<ProviderOption[]>([]);
   const [loading, setLoading] = useState(true);
   const detectLock = useRef(false);
@@ -107,6 +113,38 @@ export function ModelSettings({ value, onChange, disabled }: Props) {
 
   return (
     <div className="model-settings">
+      <div className="model-settings-row">
+        <label className="model-settings-label" htmlFor="model-provider">
+          選擇服務 / 模型
+        </label>
+        <select
+          id="model-provider"
+          className="model-settings-select"
+          value={value.providerId}
+          onChange={(e) => handleProviderChange(e.target.value)}
+          disabled={disabled}
+        >
+          {list.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+          <option value="custom">自訂 (Custom)</option>
+        </select>
+        {currentProvider?.getKeyUrl && (
+          <span className="model-settings-help">
+            沒有 Key？
+            <a
+              href={currentProvider.getKeyUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              取得 {currentProvider.name} API Key
+            </a>
+          </span>
+        )}
+      </div>
+
       <div className="model-settings-row">
         <label className="model-settings-label" htmlFor="model-apikey">
           API Key
