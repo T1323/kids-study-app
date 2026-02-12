@@ -4,6 +4,8 @@ const API_BASE =
   typeof import.meta.env.VITE_API_BASE_URL === "string" &&
   import.meta.env.VITE_API_BASE_URL.trim() !== ""
     ? import.meta.env.VITE_API_BASE_URL.trim().replace(/\/$/, "")
+    : import.meta.env.PROD
+    ? ""
     : "http://localhost:3000";
 
 export interface ProviderOption {
