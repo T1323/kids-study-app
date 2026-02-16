@@ -168,7 +168,7 @@ export const EnglishSearchView = () => {
             data={userProgress}
             onUpdateData={setUserProgress}
             accessToken={accessToken || ""}
-            level={level === "junior-high" ? "senior" : level}
+            level={level}
             modelSettings={modelSettings}
             quizMode="english"
           />
