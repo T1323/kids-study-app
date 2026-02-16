@@ -5,7 +5,7 @@ import { QuizQuestion } from '../types';
 
 interface Props {
   data: UserProgressData;
-  level: "junior" | "senior";
+  level: "junior" | "senior" | "junior-high";
   modelSettings: {
     apiKey: string;
     providerId: string;
@@ -62,10 +62,13 @@ export const QuizSetup: React.FC<Props> = ({
         .slice(0, 5)
         .map(item => quizMode === 'idiom' ? item.idiom : item.word);
 
+      // Quiz currently only supports 'junior' or 'senior'. Map 'junior-high' to 'senior'.
+      const validLevel = level === "junior-high" ? "senior" : level;
+
       const questions = await generateQuiz({
         targets: selectedTargets,
         type: quizMode,
-        level,
+        level: validLevel,
         apiKey: modelSettings.apiKey,
         provider: modelSettings.providerId,
         model: modelSettings.customModel,
