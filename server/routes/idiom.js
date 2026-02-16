@@ -33,7 +33,9 @@ export async function postExplain(req, res) {
   try {
     const { idiom, level, apiKey, provider, model, baseURL } = req.body || {};
     const trimmedIdiom = typeof idiom === "string" ? idiom.trim() : "";
-    const validLevel = level === "senior" ? "senior" : "junior";
+    let validLevel = "junior";
+    if (level === "senior") validLevel = "senior";
+    if (level === "junior-high") validLevel = "junior-high";
 
     if (!trimmedIdiom) {
       res.status(400).json({ error: "請提供成語（idiom）。" });

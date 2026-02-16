@@ -20,7 +20,7 @@ const DEFAULT_PROGRESS: UserProgressData = {
 };
 
 export const EnglishSearchView = () => {
-  const { accessToken, modelSettings } = useGlobalContext();
+  const { accessToken, modelSettings, level } = useGlobalContext();
   const [result, setResult] = useState<EnglishWordExplain | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export const EnglishSearchView = () => {
   }, [accessToken]);
 
 
-  const handleSearch = async (word: string, level: StudyLevel) => {
+  const handleSearch = async (word: string) => {
     setLoading(true);
     setError(null);
     setResult(null);
@@ -130,15 +130,13 @@ export const EnglishSearchView = () => {
             </div>
         ) : (
           <LearningHistory
-            data={userProgress}
-            type="english"
-            onSelect={(word) => {
-              handleSearch(word, "junior"); // Default to junior or need to store level?
-              // Ideally we might want to store the level in history too, but for now just search.
-              // Or update handleSearch to optional level?
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
+                data={userProgress}
+                type="english"
+                onSelect={(word) => {
+                  handleSearch(word);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
         )}
       </div>
     </div>

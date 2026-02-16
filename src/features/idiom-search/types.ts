@@ -1,4 +1,4 @@
-export type StudyLevel = "junior" | "senior";
+export type StudyLevel = "junior" | "senior" | "junior-high";
 
 export interface IdiomExample {
   zh: string;

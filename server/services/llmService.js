@@ -4,6 +4,7 @@ import { PROVIDERS } from "../config/providers.js";
 const LEVEL_DESC = {
   junior: "低年級（用詞簡單、句子短、適合約 6 歲）",
   senior: "高年級（可稍難、句子較完整、適合約 11 歲）",
+  "junior-high": "國中（內容可深入、探討典故與應用、適合約 14 歲）",
 };
 
 /**
@@ -100,81 +101,57 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
       },
       { role: "user", content: prompt },
     ],
-    temperature: 0.3,
+    temperature: 0.7,
   });
 
-  const content = response.choices?.[0]?.message?.content?.trim();
-  if (!content) {
-    throw new Error("LLM 未回傳內容");
-  }
-
-  let jsonStr = content;
-  const codeBlock = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlock) {
-    jsonStr = codeBlock[1].trim();
-  }
-
-  let data;
+  const content = response.choices[0].message.content;
+  // 嘗試解析 JSON
   try {
-    data = JSON.parse(jsonStr);
+    // 有時候模型會回傳 ```json ... ```，需去掉
+    const cleanContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(cleanContent);
   } catch (e) {
-    throw new Error("LLM 回傳無法解析為 JSON：" + content.slice(0, 200));
+    console.error("JSON parse error:", content);
+    throw new Error("模型回傳格式錯誤，請重試");
   }
-
-  if (data.status === "not_found") {
-    throw new Error("找不到相近成語");
-  }
-
-  return {
-    idiom: String(data.idiom ?? idiom),
-    is_idiom: typeof data.is_idiom === "boolean" ? data.is_idiom : true, // 預設 true 以相容舊格式
-    zhuyin: data.zhuyin ? String(data.zhuyin) : undefined,
-    meaning: String(data.meaning ?? ""),
-    usage: data.usage ? String(data.usage) : undefined,
-    examples: Array.isArray(data.examples)
-      ? data.examples.map((ex) => ({ zh: String(ex?.zh ?? "") }))
-      : [],
-    tips: data.tips ? String(data.tips) : undefined,
-    level,
-  };
 }
 
 /**
- * 產生填空測驗題目的 Prompt。
+ * 建立成語測驗的 Prompt
  */
 function buildQuizPrompt(idioms, level) {
   const levelDesc = LEVEL_DESC[level];
-  const idiomListStr = idioms.join("、");
+  const idiomsStr = idioms.join("、");
+  return `你是一位成語測驗出題老師，專門為國小學童設計成語測驗。
 
-  return `你是一位中文成語測驗出題老師，專門為國小學童（${levelDesc}）設計測驗。
-目標成語列表：${idiomListStr}
+請針對以下成語列表：「${idiomsStr}」，設計 5 題選擇題。適合「${levelDesc}」。
 
-請針對列表中的每個成語，設計一個「填空選擇題」。
-每個題目包含：
-1. 題目句子：一個使用該成語的情境句，但將該成語挖空（用 _____ 代替）。
-2. 選項：提供 4 個選項，其中一個是正確成語，另外三個是干擾選項（可以是真實成語或似是而非的詞，需具有誘答性）。
-3. 正確答案：即該成語。
-4. 解析：簡單說明為什麼選這個成語。
+請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
+陣列中每個物件代表一個題目，格式必須嚴格如下：
 
-請「只」回傳一個 JSON 陣列（Array），不要其他說明或 markdown。格式範例如下：
 [
   {
-    "target": "畫蛇添足",
-    "question": "這篇文章已經寫得很完整了，你再加這一段反而像是_____，多此一舉。",
-    "options": ["畫蛇添足", "錦上添花", "雪中送炭", "井底之蛙"],
-    "answer": "畫蛇添足",
-    "explanation": "因為句子裡提到「多此一舉」，表示多做的反而不好，所以選「畫蛇添足」。"
-  }
+    "id": "1",
+    "type": "meaning", // 題目類型：meaning (意指), usage (用法), fill_in (填空)
+    "question": "題目敘述",
+    "options": ["選項A", "選項B", "選項C", "選項D"],
+    "answer": "正確選項內容 (必須完全符合 options 中的某一項)",
+    "explanation": "解析 (為何選這個答案)"
+  },
+  ...
 ]
 
-注意：
-- 題目句子要通順，並能清楚暗示答案。
-- options 陣列內的順序請隨機排列，不要固定第一個是答案。
-- 請確保回傳的是合法的 JSON 格式。`;
+出題規則：
+1. 題目類型請混合 meaning (成語解釋), usage (情境應用), fill_in (成語填空)。
+2. 盡量平均分配題目給列表中的成語，不要只考同一個。
+3. 選項必須有 4 個。
+4. 內容要適合小學生，用語親切簡單。
+5. 若成語數量不足 5 個，可重複出題或針對同一成語出不同類型的題目，總數需為 5 題。
+`;
 }
 
 /**
- * 呼叫 LLM，產生測驗題目。
+ * 呼叫 LLM 生成成語測驗
  * @param {string[]} idioms
  * @param {"junior"|"senior"} level
  * @param {{ apiKey?: string, providerId?: string, model?: string, baseURL?: string }} options
@@ -189,41 +166,88 @@ export async function generateQuizWithLLM(idioms, level, options = {}) {
       {
         role: "system",
         content:
-          "你只回傳符合指定格式的 JSON 陣列，不輸出任何其他文字或 markdown 標記。",
+          "你只回傳符合指定格式的 JSON Array，不輸出任何其他文字或 markdown 標記。",
       },
       { role: "user", content: prompt },
     ],
-    temperature: 0.5,
+    temperature: 0.7,
   });
 
-  const content = response.choices?.[0]?.message?.content?.trim();
-  if (!content) {
-    throw new Error("LLM 未回傳內容");
-  }
-
-  let jsonStr = content;
-  const codeBlock = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlock) {
-    jsonStr = codeBlock[1].trim();
-  }
-
-  let data;
+  const content = response.choices[0].message.content;
   try {
-    data = JSON.parse(jsonStr);
+    const cleanContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
+    const result = JSON.parse(cleanContent);
+    if (!Array.isArray(result)) {
+      throw new Error("回傳格式不是陣列");
+    }
+    return result;
   } catch (e) {
-    throw new Error("LLM 回傳無法解析為 JSON：" + content.slice(0, 200));
+    console.error("JSON parse error (Quiz):", content);
+    throw new Error("模型回傳格式錯誤，請重試");
   }
+}
 
-  if (!Array.isArray(data)) {
-    throw new Error("LLM 回傳格式錯誤：預期為陣列");
+/**
+ * 建立英文單字解釋的 Prompt
+ */
+function buildEnglishPrompt(word, level) {
+  const levelDesc = LEVEL_DESC[level];
+  return `你是一位親切的英文老師，專門教導台灣國小學生英文單字。
+
+請針對英文單字「${word}」，撰寫適合「${levelDesc}」的教學內容。
+
+請「只」回傳一個 JSON 物件，不要其他說明或 markdown。格式必須嚴格如下：
+
+{
+"status": "found", // 若找不到該字或拼字錯誤，填 "not_found"
+"word": "${word}", // 修正後的确切單字 (例如 user 輸入 appple，修正為 apple)
+"kk_phonetic": "[KK音標]",
+"part_of_speech": "詞性 (例如 n., v., adj.)",
+"meaning_en": "簡單的英文解釋 (適合小孩)",
+"meaning_zh": "繁體中文解釋",
+"examples": [
+  { "en": "英文例句1", "zh": "中文翻譯1" },
+  { "en": "英文例句2", "zh": "中文翻譯2" }
+],
+"synonyms": ["同義詞1", "同義詞2"], // 可選，若無填空陣列
+"antonyms": ["反義詞1", "反義詞2"], // 可選，若無填空陣列
+"tips": "記憶小撇步或延伸用法 (繁體中文)"
+}
+
+注意：
+1. 若輸入的不是單字 (是句子或亂碼)，請回傳 {"status": "not_found"}。
+2. 解釋要簡單易懂，適合小學生。
+3. 英文解釋請用簡單的英文。
+4. KK音標請準確。
+`;
+}
+
+/**
+* 呼叫 LLM 解釋英文單字
+*/
+export async function explainEnglishWithLLM(word, level, options = {}) {
+  const { client, model } = getClientAndModel(options);
+  const prompt = buildEnglishPrompt(word, level);
+
+  const response = await client.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: "system",
+        content:
+          "你只回傳符合指定格式的 JSON，不輸出任何其他文字或 markdown 標記。",
+      },
+      { role: "user", content: prompt },
+    ],
+    temperature: 0.7,
+  });
+
+  const content = response.choices[0].message.content;
+  try {
+    const cleanContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(cleanContent);
+  } catch (e) {
+    console.error("JSON parse error (English):", content);
+    throw new Error("模型回傳格式錯誤，請重試");
   }
-
-  return data.map((item, index) => ({
-    id: String(index + 1), // 簡單給個 ID
-    target: String(item.target || ""),
-    question: String(item.question || ""),
-    options: Array.isArray(item.options) ? item.options.map(String) : [],
-    answer: String(item.answer || ""),
-    explanation: String(item.explanation || ""),
-  }));
 }

@@ -1,5 +1,6 @@
 export const SETTINGS_FILE_NAME = "kids-study-app-settings.json";
 export const PROGRESS_FILE_NAME = "kids-study-app-progress.json";
+export const ENGLISH_PROGRESS_FILE_NAME = "kids-study-app-english-progress.json";
 
 // Keep for backward compatibility during refactor, but better to use specific constants
 export const FILE_NAME = SETTINGS_FILE_NAME;
@@ -15,6 +16,8 @@ export interface AppSettings {
   lastUpdated: number;
 }
 
+import { EnglishHistoryItem } from "../../english/types";
+
 export interface IdiomProgress {
   idiom: string;
   queryTime: number; // Timestamp
@@ -24,7 +27,8 @@ export interface IdiomProgress {
 }
 
 export interface UserProgressData {
-  idioms: Record<string, IdiomProgress>;
+  idioms?: Record<string, IdiomProgress>;
+  english?: Record<string, EnglishHistoryItem>;
   lastSynced: number;
 }
 

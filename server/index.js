@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import { getProviders, detectProvider, postExplain } from "./routes/idiom.js";
 import { postGenerateQuiz } from "./routes/quiz.js";
+import { postEnglishExplain } from "./routes/english.js";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -14,6 +15,7 @@ app.get("/api/providers", getProviders);
 app.get("/api/providers/detect", detectProvider);
 app.post("/api/idiom/explain", postExplain);
 app.post("/api/quiz/generate", postGenerateQuiz);
+app.post("/api/english/explain", postEnglishExplain);
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });
