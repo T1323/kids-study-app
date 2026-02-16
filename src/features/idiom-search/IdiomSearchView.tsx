@@ -186,7 +186,7 @@ export const IdiomSearchView = () => {
             data={userProgress}
             onUpdateData={setUserProgress}
             accessToken={accessToken || ""}
-            level={level}
+            level={level === "junior-high" ? "senior" : level}
             modelSettings={modelSettings}
           />
         )}
