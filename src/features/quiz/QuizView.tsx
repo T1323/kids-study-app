@@ -16,14 +16,16 @@ interface Props {
     customModel: string;
     customBaseURL: string;
   };
+  quizMode?: 'idiom' | 'english';
 }
 
-export const QuizView: React.FC<Props> = ({ 
-  data, 
-  onUpdateData, 
+export const QuizView: React.FC<Props> = ({
+  data,
+  onUpdateData,
   accessToken,
   level,
-  modelSettings
+  modelSettings,
+  quizMode = 'idiom'
 }) => {
   const [phase, setPhase] = useState<'setup' | 'playing' | 'result'>('setup');
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -51,26 +53,33 @@ export const QuizView: React.FC<Props> = ({
       const q = questions.find(q => q.id === r.questionId);
       if (!q) return;
 
-      const idiom = q.target;
-      if (newData.idioms[idiom]) {
-        const currentProficiency = newData.idioms[idiom].proficiency || 0;
-        let change = 0;
+      const target = q.target;
+      
+      if (quizMode === 'idiom') {
+        if (newData.idioms && newData.idioms[target]) {
+          const currentProficiency = newData.idioms[target].proficiency || 0;
+          let change = r.isCorrect ? 20 : -10;
+          let newProficiency = Math.max(0, Math.min(100, currentProficiency + change));
 
-        if (r.isCorrect) {
-          change = 20;
-        } else {
-          change = -10;
+          newData.idioms[target] = {
+            ...newData.idioms[target],
+            proficiency: newProficiency,
+            lastTestTime: now,
+          };
         }
+      } else if (quizMode === 'english') {
+        if (!newData.english) newData.english = {};
+        if (newData.english[target]) {
+           const currentProficiency = newData.english[target].proficiency || 0;
+           let change = r.isCorrect ? 20 : -10;
+           let newProficiency = Math.max(0, Math.min(100, currentProficiency + change));
 
-        let newProficiency = currentProficiency + change;
-        if (newProficiency > 100) newProficiency = 100;
-        if (newProficiency < 0) newProficiency = 0;
-
-        newData.idioms[idiom] = {
-          ...newData.idioms[idiom],
-          proficiency: newProficiency,
-          lastTestTime: now,
-        };
+           newData.english[target] = {
+             ...newData.english[target],
+             proficiency: newProficiency,
+             lastTestTime: now,
+           };
+        }
       }
     });
 
@@ -107,13 +116,14 @@ export const QuizView: React.FC<Props> = ({
       )}
 
       {phase === 'setup' && (
-        <QuizSetup 
+        <QuizSetup
           data={data}
           level={level}
           modelSettings={modelSettings}
           onStart={handleStart}
           setLoading={setLoading}
           setError={setError}
+          quizMode={quizMode}
         />
       )}
 

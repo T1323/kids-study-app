@@ -5,14 +5,15 @@ import { LearningHistory } from "../idiom-search/components/LearningHistory";
 import { useGlobalContext } from "../../context/GlobalContext";
 import { fetchEnglishExplain } from "./services/englishService";
 import { EnglishWordExplain, StudyLevel } from "./types";
-import { 
-    UserProgressData, 
-    searchFile, 
-    readFile, 
-    createFile, 
-    updateFile, 
-    ENGLISH_PROGRESS_FILE_NAME 
+import {
+    UserProgressData,
+    searchFile,
+    readFile,
+    createFile,
+    updateFile,
+    ENGLISH_PROGRESS_FILE_NAME
 } from "../sync/services/googleDrive";
+import { QuizView } from "../quiz/QuizView";
 
 const DEFAULT_PROGRESS: UserProgressData = {
     english: {}, // We will store english history here
@@ -117,35 +118,99 @@ export const EnglishSearchView = () => {
       }
   };
 
+  const [activeTab, setActiveTab] = useState<'search' | 'quiz'>('search');
+
   return (
-    <div className="idiom-search-view" style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-        <h2 style={{ fontSize: "2rem", color: "#333" }}>🔤 英文單字小學堂</h2>
-        <p style={{ color: "#666" }}>輸入單字，AI 老師教你怎麼用！</p>
+    <div className="english-search-view" style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+      <div className="tab-bar">
+        <button
+          className={`tab-btn ${activeTab === 'search' ? 'active' : ''}`}
+          onClick={() => setActiveTab('search')}
+        >
+          🔍 單字查詢
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'quiz' ? 'active' : ''}`}
+          onClick={() => setActiveTab('quiz')}
+        >
+          📝 單字挑戰
+        </button>
       </div>
 
-      <EnglishSearchForm onSearch={handleSearch} loading={loading} />
+      <div className="content-area">
+        {activeTab === 'search' ? (
+          <>
+            <EnglishSearchForm onSearch={handleSearch} loading={loading} />
 
-      {error && <div className="error-message">{error}</div>}
+            {error && <div className="error-message">{error}</div>}
 
-      {result && <EnglishResultCard data={result} />}
-      
-      <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-        {!progressLoaded && accessToken ? (
-            <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>
-              ⏳ 正在同步雲端紀錄...
+            {result && <EnglishResultCard data={result} />}
+            
+            <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+              {!progressLoaded && accessToken ? (
+                  <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>
+                    ⏳ 正在同步雲端紀錄...
+                  </div>
+              ) : (
+                <LearningHistory
+                      data={userProgress}
+                      type="english"
+                      onSelect={(word) => {
+                        handleSearch(word);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    />
+              )}
             </div>
+          </>
         ) : (
-          <LearningHistory
-                data={userProgress}
-                type="english"
-                onSelect={(word) => {
-                  handleSearch(word);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              />
+          <QuizView
+            data={userProgress}
+            onUpdateData={setUserProgress}
+            accessToken={accessToken || ""}
+            level={level === "junior-high" ? "senior" : level}
+            modelSettings={modelSettings}
+            quizMode="english"
+          />
         )}
       </div>
+
+      <style>{`
+        .tab-bar {
+          display: flex;
+          justify-content: center;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+          border-bottom: 2px solid #eee;
+          padding-bottom: 0.5rem;
+        }
+        .tab-btn {
+          background: none;
+          border: none;
+          font-size: 1.1rem;
+          padding: 0.5rem 1.5rem;
+          cursor: pointer;
+          color: #666;
+          border-radius: 20px;
+          transition: all 0.2s;
+          font-weight: bold;
+        }
+        .tab-btn.active {
+          background: #e3f2fd;
+          color: #1976D2;
+        }
+        .tab-btn:hover:not(.active) {
+          background: #f5f5f5;
+        }
+        .error-message {
+          color: #d32f2f;
+          background: #ffebee;
+          padding: 0.8rem;
+          border-radius: 4px;
+          margin: 1rem 0;
+          text-align: center;
+        }
+      `}</style>
     </div>
   );
 };

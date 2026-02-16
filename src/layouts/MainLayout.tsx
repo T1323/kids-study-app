@@ -31,7 +31,7 @@ export const MainLayout = () => {
         >
           <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
             <Link to="/" style={{ textDecoration: "none", color: "inherit" }}>
-              <h1>全科小小學堂</h1>
+              <h1>小小學堂</h1>
             </Link>
             <nav style={{ display: "flex", gap: "10px" }}>
               <Link to="/idioms" style={{ 

@@ -2,9 +2,9 @@ import OpenAI from "openai";
 import { PROVIDERS } from "../config/providers.js";
 
 const LEVEL_DESC = {
-  junior: "低年級（用詞簡單、句子短、適合約 6 歲）",
-  senior: "高年級（可稍難、句子較完整、適合約 11 歲）",
-  "junior-high": "國中（內容可深入、探討典故與應用、適合約 14 歲）",
+  junior: "低年級（三年級程度，用詞簡單、句子短、適合約 9 歲）",
+  senior: "高年級（六年級程度，可稍難、句子較完整、適合約 12 歲）",
+  "junior-high": "國中（九年級程度，內容可深入、探討典故與應用、適合約 15 歲）",
 };
 
 /**
@@ -117,14 +117,16 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
 }
 
 /**
- * 建立成語測驗的 Prompt
+ * 建立測驗的 Prompt (支援成語與英文)
  */
-function buildQuizPrompt(idioms, level) {
+function buildQuizPrompt(targets, level, type = 'idiom') {
   const levelDesc = LEVEL_DESC[level];
-  const idiomsStr = idioms.join("、");
-  return `你是一位成語測驗出題老師，專門為國小學童設計成語測驗。
+  const targetsStr = targets.join("、");
+  
+  if (type === 'english') {
+    return `你是一位英文測驗出題老師，專門為台灣國小學童設計英文單字測驗。
 
-請針對以下成語列表：「${idiomsStr}」，設計 5 題選擇題。適合「${levelDesc}」。
+請針對以下英文單字列表：「${targetsStr}」，設計 5 題選擇題。適合「${levelDesc}」。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -132,6 +134,37 @@ function buildQuizPrompt(idioms, level) {
 [
   {
     "id": "1",
+    "target": "apple", // 該題考的目標單字
+    "type": "meaning", // 題目類型：meaning (英選中), usage (用法/填空), spelling (拼字辨析)
+    "question": "題目敘述 (若是 usage 題型，請挖空單字，並以底線 _____ 表示)",
+    "options": ["選項A", "選項B", "選項C", "選項D"],
+    "answer": "正確選項內容 (必須完全符合 options 中的某一項)",
+    "explanation": "解析 (為何選這個答案，請用繁體中文回答)"
+  },
+  ...
+]
+
+出題規則：
+1. 題目類型請混合 meaning (選中文意思), usage (句子填空), spelling (易混淆字辨析)。
+2. 盡量平均分配題目給列表中的單字。
+3. 選項必須有 4 個。
+4. 內容要適合小學生，英文句子簡單易懂。
+5. 若單字數量不足 5 個，可重複出題，總數需為 5 題。
+`;
+  }
+
+  // Default to idiom
+  return `你是一位成語測驗出題老師，專門為國小學童設計成語測驗。
+
+請針對以下成語列表：「${targetsStr}」，設計 5 題選擇題。適合「${levelDesc}」。
+
+請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
+陣列中每個物件代表一個題目，格式必須嚴格如下：
+
+[
+  {
+    "id": "1",
+    "target": "一石二鳥", // 該題考的目標成語
     "type": "meaning", // 題目類型：meaning (意指), usage (用法), fill_in (填空)
     "question": "題目敘述",
     "options": ["選項A", "選項B", "選項C", "選項D"],
@@ -151,14 +184,15 @@ function buildQuizPrompt(idioms, level) {
 }
 
 /**
- * 呼叫 LLM 生成成語測驗
- * @param {string[]} idioms
+ * 呼叫 LLM 生成測驗 (成語或英文)
+ * @param {string[]} targets
  * @param {"junior"|"senior"} level
  * @param {{ apiKey?: string, providerId?: string, model?: string, baseURL?: string }} options
+ * @param {'idiom'|'english'} type
  */
-export async function generateQuizWithLLM(idioms, level, options = {}) {
+export async function generateQuizWithLLM(targets, level, options = {}, type = 'idiom') {
   const { client, model } = getClientAndModel(options);
-  const prompt = buildQuizPrompt(idioms, level);
+  const prompt = buildQuizPrompt(targets, level, type);
 
   const response = await client.chat.completions.create({
     model,
@@ -180,7 +214,15 @@ export async function generateQuizWithLLM(idioms, level, options = {}) {
     if (!Array.isArray(result)) {
       throw new Error("回傳格式不是陣列");
     }
-    return result;
+    // Ensure each question has a target field if missing (heuristic match)
+    return result.map(q => {
+        if (!q.target) {
+            // Try to find which target is in the answer or question
+            const matched = targets.find(t => q.answer.includes(t) || q.question.includes(t));
+            if (matched) q.target = matched;
+        }
+        return q;
+    });
   } catch (e) {
     console.error("JSON parse error (Quiz):", content);
     throw new Error("模型回傳格式錯誤，請重試");

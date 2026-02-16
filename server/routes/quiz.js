@@ -3,19 +3,22 @@ import { detectProviderFromApiKey } from "../config/providers.js";
 
 /**
  * POST /api/quiz/generate
- * Body: { idioms: string[], level: string, apiKey?, provider?, model?, baseURL? }
+ * Body: { idioms?: string[], targets?: string[], type?: string, level: string, apiKey?, provider?, model?, baseURL? }
  */
 export async function postGenerateQuiz(req, res) {
   try {
-    const { idioms, level, apiKey, provider, model, baseURL } = req.body || {};
-    
-    if (!Array.isArray(idioms) || idioms.length === 0) {
-      res.status(400).json({ error: "請提供成語列表 (idioms array)。" });
+    // Determine quiz type and targets
+    const { idioms, targets, type, level, apiKey, provider, model, baseURL } = req.body || {};
+    const quizType = type === 'english' ? 'english' : 'idiom';
+    const targetList = targets || idioms; // Legacy support for 'idioms'
+
+    if (!Array.isArray(targetList) || targetList.length === 0) {
+      res.status(400).json({ error: "請提供列表 (targets array)。" });
       return;
     }
 
-    // 限制一次最多處理 5 個成語，避免 LLM 負載過重或 timeout
-    const targetIdioms = idioms.slice(0, 5); 
+    // 限制一次最多處理 5 個項目，避免 LLM 負載過重或 timeout
+    const limitedTargets = targetList.slice(0, 5);
     const validLevel = level === "senior" ? "senior" : "junior";
 
     const options = {};
@@ -29,7 +32,7 @@ export async function postGenerateQuiz(req, res) {
       if (typeof baseURL === "string" && baseURL.trim()) options.baseURL = baseURL.trim();
     }
 
-    const questions = await generateQuizWithLLM(targetIdioms, validLevel, options);
+    const questions = await generateQuizWithLLM(limitedTargets, validLevel, options, quizType);
     res.json({ questions });
 
   } catch (err) {

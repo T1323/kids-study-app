@@ -15,53 +15,62 @@ interface Props {
   onStart: (questions: QuizQuestion[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  quizMode?: 'idiom' | 'english';
 }
 
-export const QuizSetup: React.FC<Props> = ({ 
-  data, 
-  level, 
+export const QuizSetup: React.FC<Props> = ({
+  data,
+  level,
   modelSettings,
-  onStart, 
+  onStart,
   setLoading,
-  setError
+  setError,
+  quizMode = 'idiom'
 }) => {
   const handleStart = async (mode: 'latest' | 'weakest') => {
     setLoading(true);
     setError(null);
     try {
-      const idioms = Object.values(data.idioms);
+      let candidates: any[] = [];
       
-      if (idioms.length === 0) {
-        throw new Error("目前沒有學習紀錄，無法進行測驗。");
+      if (quizMode === 'idiom') {
+        const list = Object.values(data.idioms || {});
+        if (list.length === 0) throw new Error("目前沒有成語學習紀錄，無法進行測驗。");
+        candidates = list;
+      } else {
+        const list = Object.values(data.english || {});
+        if (list.length === 0) throw new Error("目前沒有英文學習紀錄，無法進行測驗。");
+        candidates = list;
       }
 
-      let candidates = [];
+      let selectedCandidates = [];
       if (mode === 'latest') {
         // 最近查詢的前 20 筆
-        candidates = idioms
+        selectedCandidates = candidates
           .sort((a, b) => b.queryTime - a.queryTime)
           .slice(0, 20);
       } else {
         // 熟練度最低的前 20 筆 (熟練度相同時，優先選較早查詢的)
-        candidates = idioms
+        selectedCandidates = candidates
           .sort((a, b) => a.proficiency - b.proficiency || a.queryTime - b.queryTime)
           .slice(0, 20);
       }
 
       // 從候選名單中隨機選出 5 個
-      const selectedIdioms = candidates
+      const selectedTargets = selectedCandidates
         .sort(() => Math.random() - 0.5)
         .slice(0, 5)
-        .map(item => item.idiom);
+        .map(item => quizMode === 'idiom' ? item.idiom : item.word);
 
       const questions = await generateQuiz({
-        idioms: selectedIdioms,
+        targets: selectedTargets,
+        type: quizMode,
         level,
         apiKey: modelSettings.apiKey,
         provider: modelSettings.providerId,
         model: modelSettings.customModel,
         baseURL: modelSettings.customBaseURL,
-      });
+      } as any);
 
       onStart(questions);
     } catch (err: any) {
@@ -73,9 +82,12 @@ export const QuizSetup: React.FC<Props> = ({
 
   return (
     <div className="quiz-setup">
-      <h2>成語填空挑戰</h2>
+      <h2>{quizMode === 'idiom' ? '成語填空挑戰' : '英文單字挑戰'}</h2>
       <p className="description">
-        想知道自己學會了多少成語嗎？快來挑戰看看！<br/>
+        {quizMode === 'idiom'
+          ? '想知道自己學會了多少成語嗎？快來挑戰看看！'
+          : '想知道自己記住了多少單字嗎？快來挑戰看看！'}
+        <br/>
         系統會根據你的學習紀錄，自動出題考考你。
       </p>
 
@@ -83,13 +95,13 @@ export const QuizSetup: React.FC<Props> = ({
         <div className="mode-card" onClick={() => handleStart('latest')}>
           <div className="icon">🕒</div>
           <h3>最新查詢</h3>
-          <p>複習最近查過的成語，加深印象。</p>
+          <p>{quizMode === 'idiom' ? '複習最近查過的成語' : '複習最近查過的單字'}，加深印象。</p>
         </div>
 
         <div className="mode-card" onClick={() => handleStart('weakest')}>
           <div className="icon">💪</div>
           <h3>弱點特訓</h3>
-          <p>針對還不熟練的成語進行加強練習。</p>
+          <p>{quizMode === 'idiom' ? '針對還不熟練的成語' : '針對還不熟練的單字'}進行加強練習。</p>
         </div>
       </div>
 
