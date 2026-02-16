@@ -6,7 +6,7 @@ export const ENGLISH_PROGRESS_FILE_NAME = "kids-study-app-english-progress.json"
 export const FILE_NAME = SETTINGS_FILE_NAME;
 
 export interface AppSettings {
-  level: "junior" | "senior";
+  level: "junior" | "senior" | "junior-high";
   modelSettings: {
     providerId: string;
     apiKey: string;
