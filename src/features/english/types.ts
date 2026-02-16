@@ -18,6 +18,8 @@ export interface EnglishWordExplain {
   level: StudyLevel;
 }
 
+// Deprecated: Use EnglishProgress in googleDrive.ts instead for storage
+// Keeping this temporarily if needed for other components, or remove if unused.
 export interface EnglishHistoryItem extends EnglishWordExplain {
   timestamp: number;
 }

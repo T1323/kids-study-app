@@ -16,8 +16,6 @@ export interface AppSettings {
   lastUpdated: number;
 }
 
-import { EnglishHistoryItem } from "../../english/types";
-
 export interface IdiomProgress {
   idiom: string;
   queryTime: number; // Timestamp
@@ -26,9 +24,17 @@ export interface IdiomProgress {
   queryCount: number; // How many times queried
 }
 
+export interface EnglishProgress {
+  word: string;
+  queryTime: number; // Timestamp
+  proficiency: number; // 0-100 (default 0)
+  lastTestTime: number; // Timestamp (default 0)
+  queryCount: number; // How many times queried
+}
+
 export interface UserProgressData {
   idioms?: Record<string, IdiomProgress>;
-  english?: Record<string, EnglishHistoryItem>;
+  english?: Record<string, EnglishProgress>;
   lastSynced: number;
 }
 

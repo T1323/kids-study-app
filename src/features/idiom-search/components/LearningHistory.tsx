@@ -1,7 +1,5 @@
 import React from 'react';
 import { UserProgressData, IdiomProgress } from '../../sync/services/googleDrive';
-import { EnglishHistoryItem } from '../../english/types';
-
 interface Props {
   data: UserProgressData;
   type?: 'idiom' | 'english';
@@ -21,11 +19,13 @@ export const LearningHistory: React.FC<Props> = ({ data, type = 'idiom', onSelec
       }));
   } else if (type === 'english' && data.english) {
     list = Object.values(data.english)
-      .sort((a, b) => b.timestamp - a.timestamp)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map(item => item as any) // Cast to handle old data format potentially
+      .sort((a, b) => (b.queryTime || b.timestamp) - (a.queryTime || a.timestamp))
       .map(item => ({
         text: item.word,
-        time: item.timestamp,
-        count: 1 // English history doesn't track count yet
+        time: item.queryTime || item.timestamp,
+        count: item.queryCount || 1
       }));
   }
 

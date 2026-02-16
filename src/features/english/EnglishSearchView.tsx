@@ -78,11 +78,18 @@ export const EnglishSearchView = () => {
           if (!newProgress.english) newProgress.english = {};
           
           // Use word as key
+          const now = Date.now();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const existing = newProgress.english?.[data.word] as any;
+
           newProgress.english[data.word] = {
-              ...data,
-              timestamp: Date.now()
+              word: data.word,
+              queryTime: now,
+              proficiency: existing?.proficiency || 0,
+              lastTestTime: existing?.lastTestTime || 0,
+              queryCount: (existing?.queryCount || existing?.count || 0) + 1
           };
-          newProgress.lastSynced = Date.now();
+          newProgress.lastSynced = now;
           
           setUserProgress(newProgress);
           
