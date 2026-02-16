@@ -188,6 +188,7 @@ export const IdiomSearchView = () => {
             accessToken={accessToken || ""}
             level={level}
             modelSettings={modelSettings}
+            quizMode="idiom"
           />
         )}
       </div>
