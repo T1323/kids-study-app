@@ -1,18 +1,38 @@
 import React from 'react';
 import { UserProgressData, IdiomProgress } from '../../sync/services/googleDrive';
+import { EnglishHistoryItem } from '../../english/types';
 
 interface Props {
   data: UserProgressData;
-  onSelectIdiom: (idiom: string) => void;
+  type?: 'idiom' | 'english';
+  onSelect: (item: string) => void;
 }
 
-export const LearningHistory: React.FC<Props> = ({ data, onSelectIdiom }) => {
-  const idiomList = Object.values(data.idioms).sort((a, b) => b.queryTime - a.queryTime);
+export const LearningHistory: React.FC<Props> = ({ data, type = 'idiom', onSelect }) => {
+  let list: Array<{ text: string, time: number, count?: number }> = [];
 
-  if (idiomList.length === 0) {
+  if (type === 'idiom' && data.idioms) {
+    list = Object.values(data.idioms)
+      .sort((a, b) => b.queryTime - a.queryTime)
+      .map(item => ({
+        text: item.idiom,
+        time: item.queryTime,
+        count: item.queryCount
+      }));
+  } else if (type === 'english' && data.english) {
+    list = Object.values(data.english)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .map(item => ({
+        text: item.word,
+        time: item.timestamp,
+        count: 1 // English history doesn't track count yet
+      }));
+  }
+
+  if (list.length === 0) {
     return (
       <div className="history-empty">
-        <p>目前還沒有學習紀錄，快去查詢成語吧！</p>
+        <p>目前還沒有{type === 'english' ? '單字' : '成語'}學習紀錄，快去查詢吧！</p>
       </div>
     );
   }
@@ -32,21 +52,25 @@ export const LearningHistory: React.FC<Props> = ({ data, onSelectIdiom }) => {
     <div className="learning-history">
       <h3 className="history-title">學習歷程</h3>
       <div className="history-list">
-        {idiomList.map((item: IdiomProgress) => (
-          <div 
-            key={item.idiom} 
+        {list.map((item) => (
+          <div
+            key={item.text}
             className="history-item"
-            onClick={() => onSelectIdiom(item.idiom)}
+            onClick={() => onSelect(item.text)}
           >
             <div className="history-item-main">
-              <span className="history-idiom">{item.idiom}</span>
-              <span className="history-date">上次查詢：{formatDate(item.queryTime)}</span>
+              <span className="history-text">{item.text}</span>
+              <span className="history-date">上次查詢：{formatDate(item.time)}</span>
             </div>
-            <div className="history-item-stats">
-              <span className="history-stat badge">查詢 {item.queryCount} 次</span>
-              {/* Future: Proficiency display */}
-              {/* <span className="history-stat">熟練度: {item.proficiency}%</span> */}
-            </div>
+            {type === 'idiom' ? (
+              <div className="history-item-stats">
+                 <span className="history-stat badge">查詢 {item.count} 次</span>
+              </div>
+            ) : (
+               <div className="history-item-stats">
+                 {/* English specific stats can go here if needed later */}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -87,7 +111,7 @@ export const LearningHistory: React.FC<Props> = ({ data, onSelectIdiom }) => {
           flex-direction: column;
           gap: 4px;
         }
-        .history-idiom {
+        .history-text {
           font-weight: bold;
           font-size: 1.1rem;
           color: #2c3e50;

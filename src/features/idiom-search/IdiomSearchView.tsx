@@ -16,9 +16,9 @@ import {
 } from "../sync/services/googleDrive";
 import { QuizView } from "../quiz/QuizView";
 
-interface Props {
-  accessToken: string | null;
-}
+// interface Props {
+//   accessToken: string | null;
+// }
 
 const DEFAULT_SETTINGS = {
   level: "junior" as const,
@@ -36,13 +36,16 @@ const DEFAULT_PROGRESS: UserProgressData = {
   lastSynced: 0,
 };
 
-export const IdiomSearchView = ({ accessToken }: Props) => {
+import { useGlobalContext } from "../../context/GlobalContext";
+
+export const IdiomSearchView = () => {
+  const { accessToken, modelSettings, setModelSettings } = useGlobalContext();
   const [activeTab, setActiveTab] = useState<'search' | 'quiz'>('search');
   const [idiomInput, setIdiomInput] = useState("");
   const [level, setLevel] = useState<"junior" | "senior">("junior");
-  const [modelSettings, setModelSettings] = useState(
-    DEFAULT_SETTINGS.modelSettings
-  );
+  // const [modelSettings, setModelSettings] = useState(
+  //   DEFAULT_SETTINGS.modelSettings
+  // );
 
   const [result, setResult] = useState<IdiomExplain | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,6 +56,10 @@ export const IdiomSearchView = ({ accessToken }: Props) => {
   const [userProgress, setUserProgress] = useState<UserProgressData>(DEFAULT_PROGRESS);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
+  // We need setModelSettings if we want to update it from remote (optional)
+  // For now, let's just log if remote has different settings
+  // const { setModelSettings } = useGlobalContext();
+
   // Load Settings & Progress from Drive on Login
   useEffect(() => {
     // If no accessToken, we still want to let user use the app (with local state)
@@ -61,6 +68,9 @@ export const IdiomSearchView = ({ accessToken }: Props) => {
       setSettingsLoaded(true);
       return;
     }
+
+    // Set loading state for sync
+    setSettingsLoaded(false);
 
     const loadData = async () => {
       try {
@@ -152,7 +162,7 @@ export const IdiomSearchView = ({ accessToken }: Props) => {
   const updateLocalProgress = (idiom: string) => {
     setUserProgress((prev) => {
       const now = Date.now();
-      const current = prev.idioms[idiom] || {
+      const current = prev.idioms?.[idiom] || {
         idiom,
         queryTime: 0,
         proficiency: 0,
@@ -163,7 +173,7 @@ export const IdiomSearchView = ({ accessToken }: Props) => {
       const newProgress: UserProgressData = {
         ...prev,
         idioms: {
-          ...prev.idioms,
+          ...(prev.idioms || {}),
           [idiom]: {
             ...current,
             queryTime: now,
@@ -266,14 +276,21 @@ export const IdiomSearchView = ({ accessToken }: Props) => {
             {result && <IdiomResultCard result={result} />}
 
             <div className="history-section">
-              <LearningHistory 
-                data={userProgress} 
-                onSelectIdiom={(idiom) => {
-                  setIdiomInput(idiom);
-                  handleSearch(idiom);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              />
+              {!settingsLoaded && accessToken ? (
+                 <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>
+                    ⏳ 正在同步雲端紀錄...
+                 </div>
+              ) : (
+                <LearningHistory
+                  data={userProgress}
+                  type="idiom"
+                  onSelect={(idiom) => {
+                    setIdiomInput(idiom);
+                    handleSearch(idiom);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              )}
             </div>
           </>
         ) : (
