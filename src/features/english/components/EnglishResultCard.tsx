@@ -6,10 +6,39 @@ interface Props {
 }
 
 export const EnglishResultCard = ({ data }: Props) => {
+  const handleSpeak = () => {
+    if ("speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(data.word);
+      utterance.lang = "en-US";
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   return (
     <div className="result-card">
       <div className="result-header">
-        <h2 className="idiom-title">{data.word}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 className="idiom-title">{data.word}</h2>
+          <button
+            onClick={handleSpeak}
+            className="icon-button"
+            title="Pronounce"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+            }}
+            aria-label="Listen to pronunciation"
+          >
+            🔊
+          </button>
+        </div>
         {data.kk_phonetic && <span className="phonetic">{data.kk_phonetic}</span>}
         {data.part_of_speech && <span className="pos-tag">{data.part_of_speech}</span>}
       </div>
