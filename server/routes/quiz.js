@@ -17,8 +17,8 @@ export async function postGenerateQuiz(req, res) {
       return;
     }
 
-    // 限制一次最多處理 5 個項目，避免 LLM 負載過重或 timeout
-    const limitedTargets = targetList.slice(0, 5);
+    // 限制一次最多處理 10 個項目，避免 LLM 負載過重或 timeout
+    const limitedTargets = targetList.slice(0, 10);
     const validLevel = level === "senior" ? "senior" : "junior";
 
     const options = {};

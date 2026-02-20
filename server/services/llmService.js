@@ -126,7 +126,7 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
   if (type === 'english') {
     return `你是一位英文測驗出題老師，專門為台灣國小學童設計英文單字測驗。
 
-請針對以下英文單字列表：「${targetsStr}」，設計 5 題選擇題。適合「${levelDesc}」。
+請針對以下英文單字列表：「${targetsStr}」，設計 10 題選擇題。適合「${levelDesc}」。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -149,14 +149,14 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
 2. 盡量平均分配題目給列表中的單字。
 3. 選項必須有 4 個。
 4. 內容要適合小學生，英文句子簡單易懂。
-5. 若單字數量不足 5 個，可重複出題，總數需為 5 題。
+5. 若單字數量不足 10 個，可重複出題，總數需為 10 題。
 `;
   }
 
   // Default to idiom
   return `你是一位成語測驗出題老師，專門為國小學童設計成語測驗。
 
-請針對以下成語列表：「${targetsStr}」，設計 5 題選擇題。適合「${levelDesc}」。
+請針對以下成語列表：「${targetsStr}」，設計 10 題選擇題。適合「${levelDesc}」。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -179,7 +179,7 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
 2. 盡量平均分配題目給列表中的成語，不要只考同一個。
 3. 選項必須有 4 個。
 4. 內容要適合小學生，用語親切簡單。
-5. 若成語數量不足 5 個，可重複出題或針對同一成語出不同類型的題目，總數需為 5 題。
+5. 若成語數量不足 10 個，可重複出題或針對同一成語出不同類型的題目，總數需為 10 題。
 `;
 }
 
