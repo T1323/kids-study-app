@@ -16,7 +16,7 @@ export interface ModelSettingsValue {
   customModel: string;
 }
 
-export type StudyLevel = "junior" | "senior" | "junior-high";
+export type StudyLevel = "junior" | "senior" | "junior-high" | "university";
 
 interface GlobalContextType {
   accessToken: string | null;

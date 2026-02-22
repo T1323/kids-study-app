@@ -134,6 +134,17 @@ export const MainLayout = () => {
                     />
                     國中
                   </label>
+                  <label style={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
+                    <input
+                      type="radio"
+                      name="level"
+                      value="university"
+                      checked={level === "university"}
+                      onChange={() => setLevel("university")}
+                      style={{ marginRight: "0.5rem" }}
+                    />
+                    高中/大學
+                  </label>
                 </div>
              </div>
 

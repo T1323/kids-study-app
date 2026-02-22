@@ -9,7 +9,7 @@ interface Props {
   data: UserProgressData;
   onUpdateData: (newData: UserProgressData) => void;
   accessToken: string;
-  level: "junior" | "senior" | "junior-high";
+  level: "junior" | "senior" | "junior-high" | "university";
   modelSettings: {
     apiKey: string;
     providerId: string;

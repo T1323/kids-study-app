@@ -1,4 +1,4 @@
-export type StudyLevel = "junior" | "senior" | "junior-high";
+export type StudyLevel = "junior" | "senior" | "junior-high" | "university";
 
 export interface EnglishExample {
   en: string; // English sentence

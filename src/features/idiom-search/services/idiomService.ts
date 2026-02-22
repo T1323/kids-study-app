@@ -120,6 +120,28 @@ export async function fetchIdiomExplainMock(
     };
   }
 
+  if (level === "university") {
+     return {
+      idiom: baseIdiom,
+      zhuyin: "ㄏㄨㄚˋ ㄕㄜˊ ㄊㄧㄢ ㄗㄨˊ",
+      level,
+      meaning:
+        "源於《戰國策·齊策二》。典故描述楚國門客比畫蛇奪酒，先畫成者復添其足，反失其酒。此語喻指在事物已臻完備之際，復做無益之舉，不僅徒勞無功，反損其原有之美。在現代管理學或決策理論中，亦可用於警示過度優化（Over-engineering）或無效冗餘（Redundancy）的現象。",
+      usage:
+        "多含貶義，指涉非必要的增補行為。在文學創作、藝術設計或專案執行中，強調簡潔（Simplicity）與恰如其分的重要性。與「弄巧成拙」相近，但側重於「多餘」之意；與「錦上添花」相反，後者指「多餘」但具正面效益。",
+      examples: [
+        {
+          zh: "該政策在執行層面已相當完善，若再疊床架屋地增設監管機構，無異於畫蛇添足，徒增行政成本。"
+        },
+        {
+          zh: "此論證邏輯嚴密，無需再引用旁證，否則畫蛇添足，反倒削弱了核心論點的說服力。"
+        }
+      ],
+      tips:
+        "深入探討：試分析「畫蛇添足」與「邊際效益遞減法則（Law of Diminishing Marginal Utility）」之間的關聯性。何時「多」即是「少」？"
+    };
+  }
+
   // senior 模式：用詞與說明較深
   return {
     idiom: baseIdiom,

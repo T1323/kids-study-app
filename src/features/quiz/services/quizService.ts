@@ -12,7 +12,7 @@ interface GenerateQuizRequest {
   idioms?: string[]; // Legacy support
   targets?: string[]; // New unified field
   type?: 'idiom' | 'english'; // Default to idiom
-  level: "junior" | "senior" | "junior-high";
+  level: "junior" | "senior" | "junior-high" | "university";
   apiKey?: string;
   provider?: string;
   model?: string;
