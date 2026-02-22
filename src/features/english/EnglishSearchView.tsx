@@ -14,6 +14,11 @@ import {
     ENGLISH_PROGRESS_FILE_NAME
 } from "../sync/services/googleDrive";
 import { QuizView } from "../quiz/QuizView";
+import { CustomChallengeSetup } from "./components/CustomChallengeSetup";
+import { QuizQuestion } from "../quiz/types";
+import { QuizGame } from "../quiz/components/QuizGame";
+import { QuizResultView } from "../quiz/components/QuizResultView";
+import { QuizResult } from "../quiz/types";
 
 const DEFAULT_PROGRESS: UserProgressData = {
     english: {}, // We will store english history here
@@ -27,6 +32,11 @@ export const EnglishSearchView = () => {
   const [error, setError] = useState<string | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgressData>(DEFAULT_PROGRESS);
   const [progressLoaded, setProgressLoaded] = useState(false);
+  
+  // Custom Challenge State
+  const [customQuestions, setCustomQuestions] = useState<QuizQuestion[]>([]);
+  const [customPhase, setCustomPhase] = useState<'setup' | 'playing' | 'result'>('setup');
+  const [customResults, setCustomResults] = useState<QuizResult[]>([]);
 
   // Load Progress from Drive
   useEffect(() => {
@@ -118,7 +128,50 @@ export const EnglishSearchView = () => {
       }
   };
 
-  const [activeTab, setActiveTab] = useState<'search' | 'quiz'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'quiz' | 'custom'>('search');
+
+  const handleCustomStart = (questions: QuizQuestion[], description: string) => {
+    setCustomQuestions(questions);
+    setCustomPhase('playing');
+    
+    // Update history
+    const newData = { ...userProgress };
+    if (!newData.customChallenges) newData.customChallenges = [];
+    
+    // Add new history item
+    newData.customChallenges.push({
+      id: Date.now().toString(),
+      description,
+      timestamp: Date.now()
+    });
+
+    // Keep only last 20
+    if (newData.customChallenges.length > 20) {
+      newData.customChallenges = newData.customChallenges.slice(-20);
+    }
+    
+    newData.lastSynced = Date.now();
+    setUserProgress(newData);
+    
+    if (accessToken) {
+      saveProgressToDrive(accessToken, newData);
+    }
+  };
+
+  const handleCustomComplete = (rs: QuizResult[]) => {
+      setCustomResults(rs);
+      setCustomPhase('result');
+      // We can update proficiency here too if we want, similar to QuizView
+      // For now, let's skip complex proficiency update for custom words
+      // because custom words might not be in our "english" dictionary yet.
+      // But if we want to add them, we could.
+  };
+
+  const handleCustomClose = () => {
+      setCustomPhase('setup');
+      setCustomQuestions([]);
+      setCustomResults([]);
+  };
 
   return (
     <div className="english-search-view" style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
@@ -135,10 +188,16 @@ export const EnglishSearchView = () => {
         >
           📝 單字挑戰
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'custom' ? 'active' : ''}`}
+          onClick={() => setActiveTab('custom')}
+        >
+          🎨 自訂挑戰
+        </button>
       </div>
 
       <div className="content-area">
-        {activeTab === 'search' ? (
+        {activeTab === 'search' && (
           <>
             <EnglishSearchForm onSearch={handleSearch} loading={loading} />
 
@@ -163,7 +222,9 @@ export const EnglishSearchView = () => {
               )}
             </div>
           </>
-        ) : (
+        )}
+
+        {activeTab === 'quiz' && (
           <QuizView
             data={userProgress}
             onUpdateData={setUserProgress}
@@ -172,6 +233,46 @@ export const EnglishSearchView = () => {
             modelSettings={modelSettings}
             quizMode="english"
           />
+        )}
+
+        {activeTab === 'custom' && (
+            <div className="custom-challenge-container">
+                {customPhase === 'setup' && (
+                    <CustomChallengeSetup
+                        data={userProgress}
+                        level={level}
+                        modelSettings={modelSettings}
+                        onStart={handleCustomStart}
+                        setLoading={setLoading}
+                        setError={setError}
+                    />
+                )}
+                
+                {customPhase === 'playing' && (
+                    <QuizGame
+                        questions={customQuestions}
+                        onComplete={handleCustomComplete}
+                    />
+                )}
+
+                {customPhase === 'result' && (
+                    <QuizResultView
+                        results={customResults}
+                        questions={customQuestions}
+                        onClose={handleCustomClose}
+                    />
+                )}
+
+                {loading && customPhase === 'setup' && (
+                    <div className="loading-overlay">
+                        <div className="spinner"></div>
+                        <p>正在生成客製化題目，請稍候...</p>
+                    </div>
+                )}
+                {error && customPhase === 'setup' && (
+                    <div className="error-message">{error}</div>
+                )}
+            </div>
         )}
       </div>
 
@@ -209,6 +310,29 @@ export const EnglishSearchView = () => {
           border-radius: 4px;
           margin: 1rem 0;
           text-align: center;
+        }
+        .loading-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(255,255,255,0.9);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #2196F3;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </div>

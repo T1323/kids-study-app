@@ -48,9 +48,9 @@ function getClientAndModel(options = {}) {
  */
 function buildPrompt(idiom, level) {
   const levelDesc = LEVEL_DESC[level];
-  return `你是一位中文成語教學專家，專門為國小學童撰寫成語說明。
+  return `你是一位中文成語教學專家，專門為不同程度的學習者撰寫成語說明。
 
-請針對「${idiom}」這個成語，撰寫適合「${levelDesc}」的說明。
+請針對「${idiom}」這個成語，撰寫適合「${levelDesc}」程度的說明。
 
 請「只」回傳一個 JSON 物件，不要其他說明或 markdown。格式必須嚴格如下（含欄位名稱與雙引號）：
 
@@ -59,7 +59,7 @@ function buildPrompt(idiom, level) {
   "is_idiom": true 或 false,
   "idiom": "完整的詞彙或成語名稱 (若輸入不完整請自動補全，必須修正為正確全名)",
   "zhuyin": "每個字的注音，字與字之間空一格",
-  "meaning": "一句或兩句的解釋，讓小朋友看得懂",
+  "meaning": "一句或兩句的解釋，必須符合指定程度的理解能力",
   "usage": "簡短用法說明（何時會用到這個詞）",
   "examples": [
     { "zh": "一句中文例句" },
@@ -125,9 +125,9 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
   const targetsStr = targets.join("、");
   
   if (type === 'english') {
-    return `你是一位英文測驗出題老師，專門為台灣國小學童設計英文單字測驗。
+    return `你是一位英文測驗出題老師，專門為不同程度的學習者設計英文單字測驗。
 
-請針對以下英文單字列表：「${targetsStr}」，設計 10 題選擇題。適合「${levelDesc}」。
+請針對以下英文單字列表：「${targetsStr}」，設計 10 題選擇題。內容必須適合「${levelDesc}」程度。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -149,15 +149,15 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
 1. 題目類型請混合 meaning (選中文意思), usage (句子填空), spelling (易混淆字辨析)。
 2. 盡量平均分配題目給列表中的單字。
 3. 選項必須有 4 個。
-4. 內容要適合小學生，英文句子簡單易懂。
+4. 內容與英文句子難易度需符合「${levelDesc}」。
 5. 若單字數量不足 10 個，可重複出題，總數需為 10 題。
 `;
   }
 
   // Default to idiom
-  return `你是一位成語測驗出題老師，專門為國小學童設計成語測驗。
+  return `你是一位成語測驗出題老師，專門為不同程度的學習者設計成語測驗。
 
-請針對以下成語列表：「${targetsStr}」，設計 10 題選擇題。適合「${levelDesc}」。
+請針對以下成語列表：「${targetsStr}」，設計 10 題選擇題。內容必須適合「${levelDesc}」程度。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -179,7 +179,7 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
 1. 題目類型請混合 meaning (成語解釋), usage (情境應用), fill_in (成語填空)。
 2. 盡量平均分配題目給列表中的成語，不要只考同一個。
 3. 選項必須有 4 個。
-4. 內容要適合小學生，用語親切簡單。
+4. 內容與用語難易度需符合「${levelDesc}」。
 5. 若成語數量不足 10 個，可重複出題或針對同一成語出不同類型的題目，總數需為 10 題。
 `;
 }
@@ -235,9 +235,9 @@ export async function generateQuizWithLLM(targets, level, options = {}, type = '
  */
 function buildEnglishPrompt(word, level) {
   const levelDesc = LEVEL_DESC[level];
-  return `你是一位親切的英文老師，專門教導台灣國小學生英文單字。
+  return `你是一位親切的英文老師，專門教導不同程度的學生英文單字。
 
-請針對英文單字「${word}」，撰寫適合「${levelDesc}」的教學內容。
+請針對英文單字「${word}」，撰寫適合「${levelDesc}」程度的教學內容。
 
 請「只」回傳一個 JSON 物件，不要其他說明或 markdown。格式必須嚴格如下：
 
@@ -246,7 +246,7 @@ function buildEnglishPrompt(word, level) {
 "word": "${word}", // 修正後的确切單字 (例如 user 輸入 appple，修正為 apple)
 "kk_phonetic": "[KK音標]",
 "part_of_speech": "詞性 (例如 n., v., adj.)",
-"meaning_en": "簡單的英文解釋 (適合小孩)",
+"meaning_en": "英文解釋 (難易度需適合指定程度)",
 "meaning_zh": "繁體中文解釋",
 "examples": [
   { "en": "英文例句1", "zh": "中文翻譯1" },
@@ -259,8 +259,8 @@ function buildEnglishPrompt(word, level) {
 
 注意：
 1. 若輸入的不是單字 (是句子或亂碼)，請回傳 {"status": "not_found"}。
-2. 解釋要簡單易懂，適合小學生。
-3. 英文解釋請用簡單的英文。
+2. 解釋與例句的難易度必須符合「${levelDesc}」。
+3. 英文解釋請使用適合該程度的詞彙。
 4. KK音標請準確。
 `;
 }
@@ -291,6 +291,77 @@ export async function explainEnglishWithLLM(word, level, options = {}) {
     return JSON.parse(cleanContent);
   } catch (e) {
     console.error("JSON parse error (English):", content);
+    throw new Error("模型回傳格式錯誤，請重試");
+  }
+}
+
+/**
+ * 建立自訂測驗的 Prompt
+ */
+function buildCustomQuizPrompt(description, level) {
+  const levelDesc = LEVEL_DESC[level];
+  return `你是一位英文測驗出題老師，專門為不同程度的學習者設計英文測驗。
+
+請針對使用者的描述：「${description}」，設計 10 題相關的英文選擇題。內容必須適合「${levelDesc}」程度。
+
+請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
+陣列中每個物件代表一個題目，格式必須嚴格如下：
+
+[
+  {
+    "id": "1",
+    "target": "menu", // 該題考的目標單字或重點
+    "type": "meaning", // 題目類型：meaning (英選中), usage (用法/填空), dialogue (對話理解)
+    "question": "題目敘述 (若是 usage 題型，請挖空單字，並以底線 _____ 表示)",
+    "options": ["選項A", "選項B", "選項C", "選項D"],
+    "answer": "正確選項內容 (必須完全符合 options 中的某一項)",
+    "explanation": "解析 (為何選這個答案，請用繁體中文回答)"
+  },
+  ...
+]
+
+出題規則：
+1. 題目類型請混合 meaning, usage, dialogue。
+2. 題目內容需與使用者描述的主題高度相關。
+3. 選項必須有 4 個。
+4. 內容與英文句子難易度需符合「${levelDesc}」。
+5. 總數需為 10 題。
+`;
+}
+
+/**
+ * 呼叫 LLM 生成自訂測驗
+ * @param {string} description
+ * @param {"junior"|"senior"} level
+ * @param {{ apiKey?: string, providerId?: string, model?: string, baseURL?: string }} options
+ */
+export async function generateCustomQuizWithLLM(description, level, options = {}) {
+  const { client, model } = getClientAndModel(options);
+  const prompt = buildCustomQuizPrompt(description, level);
+
+  const response = await client.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: "system",
+        content:
+          "你只回傳符合指定格式的 JSON Array，不輸出任何其他文字或 markdown 標記。",
+      },
+      { role: "user", content: prompt },
+    ],
+    temperature: 0.7,
+  });
+
+  const content = response.choices[0].message.content;
+  try {
+    const cleanContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
+    const result = JSON.parse(cleanContent);
+    if (!Array.isArray(result)) {
+      throw new Error("回傳格式不是陣列");
+    }
+    return result;
+  } catch (e) {
+    console.error("JSON parse error (Custom Quiz):", content);
     throw new Error("模型回傳格式錯誤，請重試");
   }
 }

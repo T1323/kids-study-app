@@ -32,9 +32,16 @@ export interface EnglishProgress {
   queryCount: number; // How many times queried
 }
 
+export interface CustomChallengeHistory {
+  id: string;
+  description: string;
+  timestamp: number;
+}
+
 export interface UserProgressData {
   idioms?: Record<string, IdiomProgress>;
   english?: Record<string, EnglishProgress>;
+  customChallenges?: CustomChallengeHistory[];
   lastSynced: number;
 }
 

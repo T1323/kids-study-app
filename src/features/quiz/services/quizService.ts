@@ -11,6 +11,7 @@ const API_BASE =
 interface GenerateQuizRequest {
   idioms?: string[]; // Legacy support
   targets?: string[]; // New unified field
+  description?: string; // For custom challenge
   type?: 'idiom' | 'english'; // Default to idiom
   level: "junior" | "senior" | "junior-high" | "university";
   apiKey?: string;
@@ -20,19 +21,9 @@ interface GenerateQuizRequest {
 }
 
 export async function generateQuiz(req: GenerateQuizRequest): Promise<QuizQuestion[]> {
-  // Map new unified fields to payload
-  // The backend might need adjustment, but for now assuming we can send 'idioms' for idiom mode
-  // and maybe 'words' for english mode, or generic 'targets' if we update backend.
-  // Since I cannot change backend easily right now, I will use client-side adaptation if needed.
-  // But wait, the task is to implement English Quiz feature. I should assume I can update backend or use a different endpoint?
-  // The user prompt said "Implement English Quiz functionality".
-  // I will check if I can use a new endpoint or update the existing one.
-  // For now let's construct a body that can handle both if I update the backend later, or stick to 'idioms' field if it's reused.
-  // Actually, I should probably check server/routes/quiz.js to see how it handles things.
-  // But I don't want to overcomplicate. Let's send 'targets' and 'type'.
-  
   const body: Record<string, unknown> = {
     targets: req.targets || req.idioms,
+    description: req.description,
     type: req.type || 'idiom',
     level: req.level,
   };
