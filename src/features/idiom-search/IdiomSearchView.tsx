@@ -22,7 +22,7 @@ const DEFAULT_PROGRESS: UserProgressData = {
 import { useGlobalContext } from "../../context/GlobalContext";
 
 export const IdiomSearchView = () => {
-  const { accessToken, modelSettings, level, settingsLoaded } = useGlobalContext();
+  const { accessToken, modelSettings, level, settingsLoaded, appFolderId } = useGlobalContext();
   const [activeTab, setActiveTab] = useState<'search' | 'quiz'>('search');
   const [idiomInput, setIdiomInput] = useState("");
 
@@ -35,14 +35,14 @@ export const IdiomSearchView = () => {
 
   // Load Progress from Drive on Login
   useEffect(() => {
-    if (!accessToken) {
+    if (!accessToken || !appFolderId) {
       return;
     }
 
     const loadData = async () => {
       try {
         // Load Progress
-        const progressId = await searchFile(accessToken, PROGRESS_FILE_NAME);
+        const progressId = await searchFile(accessToken, PROGRESS_FILE_NAME, appFolderId);
         if (progressId) {
           const remoteProgress: any = await readFile(accessToken, progressId);
           if (remoteProgress) {
@@ -56,7 +56,7 @@ export const IdiomSearchView = () => {
     };
 
     loadData();
-  }, [accessToken]);
+  }, [accessToken, appFolderId]);
 
   const handleSearch = async (idiom: string) => {
     setLoading(true);
@@ -120,13 +120,14 @@ export const IdiomSearchView = () => {
     });
   };
 
-  const saveProgressToDrive = async (token: string, data: UserProgressData) => {
+    const saveProgressToDrive = async (token: string, data: UserProgressData) => {
+    if (!appFolderId) return;
     try {
-      const fileId = await searchFile(token, PROGRESS_FILE_NAME);
+      const fileId = await searchFile(token, PROGRESS_FILE_NAME, appFolderId);
       if (fileId) {
         await updateFile(token, fileId, data);
       } else {
-        await createFile(token, PROGRESS_FILE_NAME, data);
+        await createFile(token, PROGRESS_FILE_NAME, data, appFolderId);
       }
     } catch (err) {
       console.error("Failed to save progress:", err);

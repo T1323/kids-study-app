@@ -26,7 +26,7 @@ const DEFAULT_PROGRESS: UserProgressData = {
 };
 
 export const EnglishSearchView = () => {
-  const { accessToken, modelSettings, level } = useGlobalContext();
+  const { accessToken, modelSettings, level, appFolderId } = useGlobalContext();
   const [result, setResult] = useState<EnglishWordExplain | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +40,7 @@ export const EnglishSearchView = () => {
 
   // Load Progress from Drive
   useEffect(() => {
-      if (!accessToken) {
-          setProgressLoaded(true);
+      if (!accessToken || !appFolderId) {
           return;
       }
 
@@ -50,7 +49,7 @@ export const EnglishSearchView = () => {
 
       const loadData = async () => {
           try {
-              const fileId = await searchFile(accessToken, ENGLISH_PROGRESS_FILE_NAME);
+              const fileId = await searchFile(accessToken, ENGLISH_PROGRESS_FILE_NAME, appFolderId);
               if (fileId) {
                   const remoteData: any = await readFile(accessToken, fileId);
                   if (remoteData) {
@@ -64,7 +63,7 @@ export const EnglishSearchView = () => {
           }
       };
       loadData();
-  }, [accessToken]);
+  }, [accessToken, appFolderId]);
 
 
   const handleSearch = async (word: string) => {
@@ -116,12 +115,13 @@ export const EnglishSearchView = () => {
   };
 
   const saveProgressToDrive = async (token: string, data: UserProgressData) => {
+      if (!appFolderId) return;
       try {
-          let fileId = await searchFile(token, ENGLISH_PROGRESS_FILE_NAME);
+          let fileId = await searchFile(token, ENGLISH_PROGRESS_FILE_NAME, appFolderId);
           if (fileId) {
               await updateFile(token, fileId, data);
           } else {
-              await createFile(token, ENGLISH_PROGRESS_FILE_NAME, data);
+              await createFile(token, ENGLISH_PROGRESS_FILE_NAME, data, appFolderId);
           }
       } catch (e) {
           console.error("Failed to save English progress", e);

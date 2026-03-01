@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { UserProgressData, saveProgress } from '../sync/services/googleDrive';
+import { UserProgressData, saveProgress, saveEnglishProgress } from '../sync/services/googleDrive';
 import { QuizSetup } from './components/QuizSetup';
 import { QuizGame } from './components/QuizGame';
 import { QuizResultView } from './components/QuizResultView';
 import { QuizQuestion, QuizResult } from './types';
+import { useGlobalContext } from '../../context/GlobalContext';
 
 interface Props {
   data: UserProgressData;
@@ -27,6 +28,7 @@ export const QuizView: React.FC<Props> = ({
   modelSettings,
   quizMode = 'idiom'
 }) => {
+  const { appFolderId } = useGlobalContext();
   const [phase, setPhase] = useState<'setup' | 'playing' | 'result'>('setup');
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [results, setResults] = useState<QuizResult[]>([]);
@@ -86,9 +88,10 @@ export const QuizView: React.FC<Props> = ({
     newData.lastSynced = now;
     onUpdateData(newData);
     
-    if (accessToken) {
+    if (accessToken && appFolderId) {
       // Sync to cloud in background
-      saveProgress(accessToken, newData).catch(err => {
+      const saveFunc = quizMode === 'english' ? saveEnglishProgress : saveProgress;
+      saveFunc(accessToken, newData, appFolderId).catch(err => {
         console.error("Failed to sync progress after quiz:", err);
       });
     }
