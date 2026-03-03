@@ -2,10 +2,10 @@ import OpenAI from "openai";
 import { PROVIDERS } from "../config/providers.js";
 
 const LEVEL_DESC = {
-  junior: "低年級（三年級程度，用詞簡單、句子短、適合約 9 歲）",
-  senior: "高年級（六年級程度，可稍難、句子較完整、適合約 12 歲）",
-  "junior-high": "國中（九年級程度，內容可深入、探討典故與應用、適合約 15 歲）",
-  university: "高中/大學（適合約 18-20 歲，內容專業、深入、探討學術與實務應用）",
+  junior: "目標對象：國小低中年級（約 7-9 歲）。風格：用詞簡單、句子短促、語氣親切活潑。避免使用生難字詞，多用具體的生活例子。解釋成語時，請像對小朋友說故事一樣，生動有趣。解釋英文單字時，請提供最基礎、最常見的字義，例句使用簡單的主詞+動詞結構。",
+  senior: "目標對象：國小高年級（約 10-12 歲）。風格：用詞稍有難度，句子結構較完整。可以引用簡單的歷史典故，但解釋仍需淺顯易懂。重點在於成語的正確用法與情境。解釋英文單字時，可包含常用片語，例句可加入形容詞或副詞修飾。",
+  "junior-high": "目標對象：國中生（約 13-15 歲）。風格：用詞精準，可探討成語的深層含義與典故由來。解釋可以包含更多文化背景，並比較相近成語的異同。解釋英文單字時，請包含詞性變化、同義詞比較，例句使用複合句。",
+  university: "目標對象：高中生與大學生（約 16-20 歲）。風格：學術且專業。深入探討成語的文學價值、歷史演變及現代應用。適合進階學習者。解釋英文單字時，請涵蓋多重詞義、抽象概念及學術用法，例句應具備新聞或文學深度。",
 };
 
 /**
@@ -47,7 +47,7 @@ function getClientAndModel(options = {}) {
  * 組出給 LLM 的 prompt，要求回傳固定格式的 JSON。
  */
 function buildPrompt(idiom, level) {
-  const levelDesc = LEVEL_DESC[level];
+  const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   return `你是一位中文成語教學專家，專門為不同程度的學習者撰寫成語說明。
 
 請針對「${idiom}」這個成語，撰寫適合「${levelDesc}」程度的說明。
@@ -121,7 +121,7 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
  * 建立測驗的 Prompt (支援成語與英文)
  */
 function buildQuizPrompt(targets, level, type = 'idiom') {
-  const levelDesc = LEVEL_DESC[level];
+  const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   const targetsStr = targets.join("、");
   
   if (type === 'english') {
@@ -234,7 +234,7 @@ export async function generateQuizWithLLM(targets, level, options = {}, type = '
  * 建立英文單字解釋的 Prompt
  */
 function buildEnglishPrompt(word, level) {
-  const levelDesc = LEVEL_DESC[level];
+  const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   return `你是一位親切的英文老師，專門教導不同程度的學生英文單字。
 
 請針對英文單字「${word}」，撰寫適合「${levelDesc}」程度的教學內容。
@@ -299,7 +299,7 @@ export async function explainEnglishWithLLM(word, level, options = {}) {
  * 建立自訂測驗的 Prompt
  */
 function buildCustomQuizPrompt(description, level) {
-  const levelDesc = LEVEL_DESC[level];
+  const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   return `你是一位英文測驗出題老師，專門為不同程度的學習者設計英文測驗。
 
 請針對使用者的描述：「${description}」，設計 10 題相關的英文選擇題。內容必須適合「${levelDesc}」程度。

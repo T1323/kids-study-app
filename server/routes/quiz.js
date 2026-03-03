@@ -33,8 +33,9 @@ export async function postGenerateQuiz(req, res) {
       if (typeof baseURL === "string" && baseURL.trim()) options.baseURL = baseURL.trim();
     }
 
-    const validLevels = ["junior", "senior", "junior-high", "university"];
-    const validLevel = validLevels.includes(level) ? level : "junior";
+    // Allow any level string to pass through (for custom levels or new predefined levels)
+    // Default to "junior" if not provided or empty
+    const validLevel = (typeof level === "string" && level.trim()) ? level.trim() : "junior";
 
     // Scenario 1: Custom Challenge (Description based)
     // Ensure description is a non-empty string

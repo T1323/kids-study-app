@@ -8,7 +8,11 @@ export async function postEnglishExplain(req, res) {
       return res.status(400).json({ error: "請提供單字 (word)" });
     }
 
-    const result = await explainEnglishWithLLM(word, level || "junior", {
+    // Allow any level string to pass through (for custom levels or new predefined levels)
+    // Default to "junior" if not provided or empty
+    const validLevel = (typeof level === "string" && level.trim()) ? level.trim() : "junior";
+
+    const result = await explainEnglishWithLLM(word, validLevel, {
       apiKey,
       providerId: provider,
       model,

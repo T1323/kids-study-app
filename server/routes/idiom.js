@@ -33,9 +33,10 @@ export async function postExplain(req, res) {
   try {
     const { idiom, level, apiKey, provider, model, baseURL } = req.body || {};
     const trimmedIdiom = typeof idiom === "string" ? idiom.trim() : "";
-    let validLevel = "junior";
-    if (level === "senior") validLevel = "senior";
-    if (level === "junior-high") validLevel = "junior-high";
+    
+    // Allow any level string to pass through (for custom levels or new predefined levels)
+    // Default to "junior" if not provided or empty
+    const validLevel = (typeof level === "string" && level.trim()) ? level.trim() : "junior";
 
     if (!trimmedIdiom) {
       res.status(400).json({ error: "請提供成語（idiom）。" });
