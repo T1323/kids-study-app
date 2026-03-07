@@ -46,7 +46,7 @@ export const CustomChallengeSetup: React.FC<Props> = ({
         baseURL: modelSettings.customBaseURL,
       });
 
-      onStart(questions, desc.trim());
+      onStart(questions as QuizQuestion[], desc.trim());
     } catch (err: any) {
       setError(err.message || "測驗生成失敗");
     } finally {
