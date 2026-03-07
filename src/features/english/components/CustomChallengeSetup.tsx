@@ -15,6 +15,7 @@ interface Props {
   onStart: (questions: QuizQuestion[], description: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  onDeleteHistory?: (id: string) => void;
 }
 
 export const CustomChallengeSetup: React.FC<Props> = ({
@@ -24,6 +25,7 @@ export const CustomChallengeSetup: React.FC<Props> = ({
   onStart,
   setLoading,
   setError,
+  onDeleteHistory,
 }) => {
   const [description, setDescription] = useState('');
 
@@ -97,10 +99,26 @@ export const CustomChallengeSetup: React.FC<Props> = ({
                 className="history-item"
                 onClick={() => handleHistoryClick(item.description)}
               >
-                <span className="hist-desc">{item.description}</span>
-                <span className="hist-date">
-                  {new Date(item.timestamp).toLocaleDateString()}
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                    <span className="hist-desc" title={item.description}>{item.description}</span>
+                    <span className="hist-date">
+                    {new Date(item.timestamp).toLocaleDateString()}
+                    </span>
+                </div>
+                {onDeleteHistory && (
+                    <button 
+                        className="delete-btn"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('確定要刪除這筆紀錄嗎？')) {
+                                onDeleteHistory(item.id);
+                            }
+                        }}
+                        title="刪除紀錄"
+                    >
+                        ✕
+                    </button>
+                )}
               </div>
             ))}
           </div>
@@ -179,17 +197,48 @@ export const CustomChallengeSetup: React.FC<Props> = ({
         .history-item:hover {
           background: #e3f2fd;
         }
+        .history-item:hover .delete-btn {
+            opacity: 1;
+        }
         .hist-desc {
           color: #2c3e50;
           font-weight: 500;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          max-width: 70%;
+          text-align: left;
         }
         .hist-date {
           color: #999;
           font-size: 0.9rem;
+          text-align: left;
+        }
+        .delete-btn {
+          background: none;
+          border: none;
+          color: #ef5350;
+          font-size: 1.2rem;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.2s, color 0.2s;
+          padding: 0 4px;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: 8px;
+          align-self: center;
+        }
+        .delete-btn:hover {
+          background-color: #ffebee;
+          color: #d32f2f;
+        }
+        @media (max-width: 768px) {
+          .delete-btn {
+            opacity: 1;
+          }
         }
       `}</style>
     </div>

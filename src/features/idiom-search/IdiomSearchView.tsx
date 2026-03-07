@@ -120,6 +120,25 @@ export const IdiomSearchView = () => {
     });
   };
 
+  const handleDelete = (idiom: string) => {
+    setUserProgress((prev) => {
+      const newIdioms = { ...prev.idioms };
+      delete newIdioms[idiom];
+      
+      const newProgress: UserProgressData = {
+        ...prev,
+        idioms: newIdioms,
+        lastSynced: Date.now(),
+      };
+      
+      if (accessToken) {
+        saveProgressToDrive(accessToken, newProgress);
+      }
+      
+      return newProgress;
+    });
+  };
+
     const saveProgressToDrive = async (token: string, data: UserProgressData) => {
     if (!appFolderId) return;
     try {
@@ -178,6 +197,7 @@ export const IdiomSearchView = () => {
                     handleSearch(idiom);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
+                  onDelete={handleDelete}
                 />
               )}
             </div>

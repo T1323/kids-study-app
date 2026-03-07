@@ -4,9 +4,10 @@ interface Props {
   data: UserProgressData;
   type?: 'idiom' | 'english';
   onSelect: (item: string) => void;
+  onDelete?: (item: string) => void;
 }
 
-export const LearningHistory: React.FC<Props> = ({ data, type = 'idiom', onSelect }) => {
+export const LearningHistory: React.FC<Props> = ({ data, type = 'idiom', onSelect, onDelete }) => {
   let list: Array<{ text: string, time: number, count?: number }> = [];
 
   if (type === 'idiom' && data.idioms) {
@@ -64,12 +65,27 @@ export const LearningHistory: React.FC<Props> = ({ data, type = 'idiom', onSelec
             </div>
             {type === 'idiom' ? (
               <div className="history-item-stats">
-                 <span className="history-stat badge">查詢 {item.count} 次</span>
-              </div>
+                  <span className="history-stat badge">查詢 {item.count} 次</span>
+               </div>
             ) : (
                <div className="history-item-stats">
                  {/* English specific stats can go here if needed later */}
               </div>
+            )}
+            
+            {onDelete && (
+              <button 
+                className="delete-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`確定要刪除「${item.text}」的學習紀錄嗎？`)) {
+                    onDelete(item.text);
+                  }
+                }}
+                title="刪除紀錄"
+              >
+                ✕
+              </button>
             )}
           </div>
         ))}
@@ -105,6 +121,35 @@ export const LearningHistory: React.FC<Props> = ({ data, type = 'idiom', onSelec
           background: #eefbee;
           border-color: #c8e6c9;
           transform: translateY(-1px);
+        }
+        .history-item:hover .delete-btn {
+          opacity: 1;
+        }
+        .delete-btn {
+          background: none;
+          border: none;
+          color: #ef5350;
+          font-size: 1.2rem;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.2s, color 0.2s;
+          padding: 0 4px;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: 8px;
+        }
+        .delete-btn:hover {
+          background-color: #ffebee;
+          color: #d32f2f;
+        }
+        @media (max-width: 768px) {
+          .delete-btn {
+            opacity: 1; /* Always show on mobile */
+          }
         }
         .history-item-main {
           display: flex;

@@ -57,7 +57,7 @@ function buildPrompt(idiom, level) {
 {
   "status": "found" 或 "not_found",
   "is_idiom": true 或 false,
-  "idiom": "完整的詞彙或成語名稱 (若輸入不完整請自動補全，必須修正為正確全名)",
+  "idiom": "完整的詞彙或成語名稱 (注意：若使用者輸入有錯字或僅輸入部分關鍵字，請務必在此欄位回傳修正後的完整正確名稱，例如輸入「一石二」應回傳「一石二鳥」)",
   "zhuyin": "每個字的注音，字與字之間空一格",
   "meaning": "一句或兩句的解釋，必須符合指定程度的理解能力",
   "usage": "簡短用法說明（何時會用到這個詞）",
@@ -315,7 +315,7 @@ function buildEnglishPrompt(word, level) {
 
 {
 "status": "found", // 若找不到該字或拼字錯誤，填 "not_found"
-"word": "${word}", // 修正後的确切單字 (例如 user 輸入 appple，修正為 apple)
+"word": "修正後的正確單字 (重要：若使用者輸入拼字錯誤或不完整，請務必在此欄位回傳正確的完整單字，例如輸入 appple 修正為 apple)",
 "kk_phonetic": "[KK音標]",
 "part_of_speech": "詞性 (例如 n., v., adj.)",
 "meaning_en": "英文解釋 (難易度需適合指定程度)",

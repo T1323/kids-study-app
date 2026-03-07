@@ -128,6 +128,43 @@ export const EnglishSearchView = () => {
       }
   };
 
+  const handleDeleteWord = (word: string) => {
+    setUserProgress((prev) => {
+      const newEnglish = { ...prev.english };
+      delete newEnglish[word];
+      
+      const newProgress: UserProgressData = {
+        ...prev,
+        english: newEnglish,
+        lastSynced: Date.now(),
+      };
+      
+      if (accessToken) {
+        saveProgressToDrive(accessToken, newProgress);
+      }
+      
+      return newProgress;
+    });
+  };
+
+  const handleDeleteCustomChallenge = (challengeId: string) => {
+    setUserProgress((prev) => {
+      const newChallenges = prev.customChallenges?.filter(c => c.id !== challengeId) || [];
+      
+      const newProgress: UserProgressData = {
+        ...prev,
+        customChallenges: newChallenges,
+        lastSynced: Date.now(),
+      };
+      
+      if (accessToken) {
+        saveProgressToDrive(accessToken, newProgress);
+      }
+      
+      return newProgress;
+    });
+  };
+
   const [activeTab, setActiveTab] = useState<'search' | 'quiz' | 'custom'>('search');
 
   const handleCustomStart = (questions: QuizQuestion[], description: string) => {
@@ -218,6 +255,7 @@ export const EnglishSearchView = () => {
                         handleSearch(word);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
+                      onDelete={handleDeleteWord}
                     />
               )}
             </div>
@@ -245,6 +283,7 @@ export const EnglishSearchView = () => {
                         onStart={handleCustomStart}
                         setLoading={setLoading}
                         setError={setError}
+                        onDeleteHistory={handleDeleteCustomChallenge}
                     />
                 )}
                 
