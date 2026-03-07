@@ -14,6 +14,10 @@ export interface IdiomExplain {
   level: StudyLevel;
   /** 是否為標準成語 */
   is_idiom?: boolean;
+  debug?: {
+    prompt: string;
+    rawResponse: string;
+  };
 }
 
 export interface IdiomExplainRequest {

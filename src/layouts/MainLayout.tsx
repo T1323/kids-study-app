@@ -13,7 +13,9 @@ export const MainLayout = () => {
     modelSettings,
     setModelSettings,
     level,
-    setLevel
+    setLevel,
+    quizQuestionCount,
+    setQuizQuestionCount
   } = useGlobalContext();
   const location = useLocation();
   const [showSettings, setShowSettings] = useState(false);
@@ -144,6 +146,34 @@ export const MainLayout = () => {
                       style={{ marginRight: "0.5rem" }}
                     />
                     高中/大學
+                  </label>
+                </div>
+             </div>
+
+             <div style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "1px solid #eee" }}>
+                <h3 style={{ marginTop: 0, marginBottom: "0.5rem" }}>測驗題數</h3>
+                <div style={{ display: "flex", gap: "1rem" }}>
+                  <label style={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
+                    <input
+                      type="radio"
+                      name="quizQuestionCount"
+                      value="5"
+                      checked={quizQuestionCount === 5}
+                      onChange={() => setQuizQuestionCount(5)}
+                      style={{ marginRight: "0.5rem" }}
+                    />
+                    5 題
+                  </label>
+                  <label style={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
+                    <input
+                      type="radio"
+                      name="quizQuestionCount"
+                      value="10"
+                      checked={quizQuestionCount === 10}
+                      onChange={() => setQuizQuestionCount(10)}
+                      style={{ marginRight: "0.5rem" }}
+                    />
+                    10 題
                   </label>
                 </div>
              </div>

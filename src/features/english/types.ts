@@ -16,6 +16,10 @@ export interface EnglishWordExplain {
   antonyms?: string[];   // Antonyms
   tips?: string;         // Usage tips or mnemonic
   level: StudyLevel;
+  debug?: {
+    prompt: string;
+    rawResponse: string;
+  };
 }
 
 // Deprecated: Use EnglishProgress in googleDrive.ts instead for storage

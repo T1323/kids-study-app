@@ -1,4 +1,4 @@
-import { QuizQuestion } from "../types";
+import { QuizQuestion, MatchingPair } from "../types";
 
 const API_BASE =
   typeof import.meta.env.VITE_API_BASE_URL === "string" &&
@@ -12,20 +12,22 @@ interface GenerateQuizRequest {
   idioms?: string[]; // Legacy support
   targets?: string[]; // New unified field
   description?: string; // For custom challenge
-  type?: 'idiom' | 'english'; // Default to idiom
+  type?: 'idiom' | 'english' | 'idiom-matching'; // Default to idiom
   level: "junior" | "senior" | "junior-high" | "university";
   apiKey?: string;
   provider?: string;
   model?: string;
   baseURL?: string;
+  questionCount?: 5 | 10;
 }
 
-export async function generateQuiz(req: GenerateQuizRequest): Promise<QuizQuestion[]> {
+export async function generateQuiz(req: GenerateQuizRequest): Promise<QuizQuestion[] | MatchingPair[]> {
   const body: Record<string, unknown> = {
     targets: req.targets || req.idioms,
     description: req.description,
     type: req.type || 'idiom',
     level: req.level,
+    questionCount: req.questionCount,
   };
 
   if (req.apiKey?.trim()) {
@@ -49,6 +51,14 @@ export async function generateQuiz(req: GenerateQuizRequest): Promise<QuizQuesti
   }
 
   const data = await res.json();
+  
+  if (data.debug) {
+    console.group("LLM Debug Info (Quiz)");
+    console.log("Prompt:", data.debug.prompt);
+    console.log("Raw Response:", data.debug.rawResponse);
+    console.groupEnd();
+  }
+
   return data.questions;
 }
 

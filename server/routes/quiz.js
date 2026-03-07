@@ -18,8 +18,13 @@ export async function postGenerateQuiz(req, res) {
       }
     }
 
-    const { idioms, targets, description, type, level, apiKey, provider, model, baseURL } = body;
-    const quizType = type === 'english' ? 'english' : 'idiom';
+    const { idioms, targets, description, type, level, apiKey, provider, model, baseURL, questionCount } = body;
+    
+    const targetList = targets || idioms; // Legacy support for 'idioms'
+
+    let quizType = 'idiom';
+    if (type === 'english') quizType = 'english';
+    else if (type === 'idiom-matching') quizType = 'idiom-matching';
     
     // Set options
     const options = {};
@@ -33,6 +38,10 @@ export async function postGenerateQuiz(req, res) {
       if (typeof baseURL === "string" && baseURL.trim()) options.baseURL = baseURL.trim();
     }
 
+    // Determine question count (default to 5 if not provided or invalid)
+    const validQuestionCount = (questionCount === 5 || questionCount === 10) ? questionCount : 5;
+    console.log(`[Quiz Generate] count requested: ${questionCount}, valid: ${validQuestionCount}, targetList len: ${targetList?.length}`);
+
     // Allow any level string to pass through (for custom levels or new predefined levels)
     // Default to "junior" if not provided or empty
     const validLevel = (typeof level === "string" && level.trim()) ? level.trim() : "junior";
@@ -40,13 +49,13 @@ export async function postGenerateQuiz(req, res) {
     // Scenario 1: Custom Challenge (Description based)
     // Ensure description is a non-empty string
     if (description && typeof description === 'string' && description.trim().length > 0) {
-        const questions = await generateCustomQuizWithLLM(description.trim(), validLevel, options);
-        res.json({ questions });
+        const { questions, debug } = await generateCustomQuizWithLLM(description.trim(), validLevel, options, validQuestionCount);
+        res.json({ questions, debug });
         return;
     }
 
     // Scenario 2: List based (Idioms or Targets)
-    const targetList = targets || idioms; // Legacy support for 'idioms'
+    // targetList is already defined above
 
     // Fix: If we fall through to here, it means description was invalid or missing.
     // If targetList is also missing, we return the error.
@@ -58,10 +67,12 @@ export async function postGenerateQuiz(req, res) {
     }
 
     // 限制一次最多處理 10 個項目，避免 LLM 負載過重或 timeout
+    // Slice to 10 items max, even if questionCount is 5.
+    // This allows the LLM to have more context or choose the best ones if the list is longer.
     const limitedTargets = targetList.slice(0, 10);
     
-    const questions = await generateQuizWithLLM(limitedTargets, validLevel, options, quizType);
-    res.json({ questions });
+    const { questions, debug } = await generateQuizWithLLM(limitedTargets, validLevel, options, quizType, validQuestionCount);
+    res.json({ questions, debug });
 
   } catch (err) {
     console.error("[POST /api/quiz/generate]", err);

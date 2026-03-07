@@ -30,6 +30,8 @@ interface GlobalContextType {
   setModelSettings: (settings: ModelSettingsValue) => void;
   level: StudyLevel;
   setLevel: (level: StudyLevel) => void;
+  quizQuestionCount: 5 | 10;
+  setQuizQuestionCount: (count: 5 | 10) => void;
   settingsLoaded: boolean;
   appFolderId: string | null;
 }
@@ -74,7 +76,18 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("user_level", newLevel);
   };
 
-  // 4. Sync Settings with Google Drive
+  // 4. Quiz Question Count
+  const [quizQuestionCount, setQuizQuestionCountState] = useState<5 | 10>(() => {
+    const saved = localStorage.getItem("quiz_question_count");
+    return (saved === "5" || saved === "10") ? (parseInt(saved) as 5 | 10) : 5;
+  });
+
+  const setQuizQuestionCount = (count: 5 | 10) => {
+    setQuizQuestionCountState(count);
+    localStorage.setItem("quiz_question_count", count.toString());
+  };
+
+  // 5. Sync Settings with Google Drive
   // Load Settings from Drive on Login
   useEffect(() => {
     if (!accessToken) {
@@ -113,6 +126,9 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
              const remoteSettings: any = await readFile(accessToken, settingsId);
              if (remoteSettings) {
                if (remoteSettings.level) setLevel(remoteSettings.level);
+               if (remoteSettings.quizQuestionCount) {
+                 setQuizQuestionCount(remoteSettings.quizQuestionCount);
+               }
                if (remoteSettings.modelSettings)
                  setModelSettings(remoteSettings.modelSettings);
              }
@@ -135,6 +151,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     const timer = setTimeout(async () => {
       const settingsContent = {
         level,
+        quizQuestionCount,
         modelSettings,
         lastUpdated: Date.now(),
       };
@@ -152,7 +169,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }, 2000); // Debounce 2s
 
     return () => clearTimeout(timer);
-  }, [level, modelSettings, accessToken, settingsLoaded, appFolderId]);
+  }, [level, quizQuestionCount, modelSettings, accessToken, settingsLoaded, appFolderId]);
 
   return (
     <GlobalContext.Provider
@@ -165,6 +182,8 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
         setModelSettings,
         level,
         setLevel,
+        quizQuestionCount,
+        setQuizQuestionCount,
         settingsLoaded,
         appFolderId,
       }}

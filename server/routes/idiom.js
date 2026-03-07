@@ -54,8 +54,8 @@ export async function postExplain(req, res) {
       if (typeof baseURL === "string" && baseURL.trim()) options.baseURL = baseURL.trim();
     }
 
-    const result = await explainIdiomWithLLM(trimmedIdiom, validLevel, options);
-    res.json(result);
+    const { data, debug } = await explainIdiomWithLLM(trimmedIdiom, validLevel, options);
+    res.json({ ...data, debug });
   } catch (err) {
     console.error("[POST /api/idiom/explain]", err);
     const message = err.message || "成語說明生成失敗，請稍後再試。";

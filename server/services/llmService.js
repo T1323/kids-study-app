@@ -110,7 +110,13 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
   try {
     // 有時候模型會回傳 ```json ... ```，需去掉
     const cleanContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
-    return JSON.parse(cleanContent);
+    return {
+      data: JSON.parse(cleanContent),
+      debug: {
+        prompt,
+        rawResponse: content
+      }
+    };
   } catch (e) {
     console.error("JSON parse error:", content);
     throw new Error("模型回傳格式錯誤，請重試");
@@ -120,14 +126,14 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
 /**
  * 建立測驗的 Prompt (支援成語與英文)
  */
-function buildQuizPrompt(targets, level, type = 'idiom') {
+function buildQuizPrompt(targets, level, type = 'idiom', questionCount = 10) {
   const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   const targetsStr = targets.join("、");
   
   if (type === 'english') {
     return `你是一位英文測驗出題老師，專門為不同程度的學習者設計英文單字測驗。
 
-請針對以下英文單字列表：「${targetsStr}」，設計 10 題選擇題。內容必須適合「${levelDesc}」程度。
+請針對以下英文單字列表：「${targetsStr}」，設計 ${questionCount} 題選擇題。內容必須適合「${levelDesc}」程度。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -140,24 +146,25 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
     "question": "題目敘述 (若是 usage 題型，請挖空單字，並以底線 _____ 表示)",
     "options": ["選項A", "選項B", "選項C", "選項D"],
     "answer": "正確選項內容 (必須完全符合 options 中的某一項)",
-    "explanation": "解析 (為何選這個答案，請用繁體中文回答)"
+    "explanation": "解析 (為何選這個答案，請包含單字意思與選項辨析，用繁體中文回答)"
   },
   ...
 ]
 
 出題規則：
 1. 題目類型請混合 meaning (選中文意思), usage (句子填空), spelling (易混淆字辨析)。
-2. 盡量平均分配題目給列表中的單字。
-3. 選項必須有 4 個。
+2. 請從列表中選擇適合的單字出題，總共 ${questionCount} 題。若列表長度大於 ${questionCount}，請挑選其中 ${questionCount} 個單字出題即可，不需全部使用。
+3. 選項必須有 4 個。誘答選項(Distractors)必須具備高度誘答性，應選擇意思相近、拼法相似或詞性容易混淆的單字，避免太過明顯的錯誤選項。
 4. 內容與英文句子難易度需符合「${levelDesc}」。
-5. 若單字數量不足 10 個，可重複出題，總數需為 10 題。
+5. 若單字數量不足 ${questionCount} 個，可重複出題，總數需為 ${questionCount} 題。
+6. 請務必隨機打亂題目順序，不要讓同一個目標單字的題目連續出現。確保題目的分佈是隨機的。
 `;
   }
 
   // Default to idiom
   return `你是一位成語測驗出題老師，專門為不同程度的學習者設計成語測驗。
 
-請針對以下成語列表：「${targetsStr}」，設計 10 題選擇題。內容必須適合「${levelDesc}」程度。
+請針對以下成語列表：「${targetsStr}」，設計 ${questionCount} 題選擇題。內容必須適合「${levelDesc}」程度。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -166,21 +173,62 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
   {
     "id": "1",
     "target": "一石二鳥", // 該題考的目標成語
-    "type": "meaning", // 題目類型：meaning (意指), usage (用法), fill_in (填空)
+    "type": "meaning", // 題目類型：meaning (意指), usage (用法), fill_in (填空), synonym (同義詞/反義詞)
     "question": "題目敘述",
     "options": ["選項A", "選項B", "選項C", "選項D"],
     "answer": "正確選項內容 (必須完全符合 options 中的某一項)",
-    "explanation": "解析 (為何選這個答案)"
+    "explanation": "解析 (包含成語解釋與為何選此答案，請詳細說明選項差異，嚴禁出現英文)"
   },
   ...
 ]
 
 出題規則：
-1. 題目類型請混合 meaning (成語解釋), usage (情境應用), fill_in (成語填空)。
-2. 盡量平均分配題目給列表中的成語，不要只考同一個。
-3. 選項必須有 4 個。
+1. 題目類型請自由混合 meaning (成語解釋), usage (情境應用), fill_in (成語填空), synonym (同義/反義詞)。
+2. 請從列表中選擇適合的成語出題，總共 ${questionCount} 題。若列表長度大於 ${questionCount}，請挑選其中 ${questionCount} 個成語出題即可，不需全部使用。
+3. 選項必須有 4 個。誘答選項(Distractors)必須具備高度誘答性，請選擇意思相近、字形相似或情境容易混淆的成語，嚴禁出現一眼就能看出的錯誤選項(如完全無關的詞彙)。
 4. 內容與用語難易度需符合「${levelDesc}」。
-5. 若成語數量不足 10 個，可重複出題或針對同一成語出不同類型的題目，總數需為 10 題。
+5. 若成語數量不足 ${questionCount} 個，請針對重點成語多出幾題不同類型的題目，總數需為 ${questionCount} 題。
+6. 請務必隨機打亂題目順序，不要讓同一個目標成語的題目連續出現。確保題目的分佈是隨機的。
+7. 嚴格禁止在題目敘述(question)、選項(options)或解析(explanation)中出現英文翻譯或英文說明。
+8. **絕對禁止**包含任何 "(English: ...)", "(Literal meaning: ...)" 或類似的英文解釋。請完全使用繁體中文。
+`;
+}
+
+/**
+ * 建立配對測驗的 Prompt
+ */
+function buildMatchingQuizPrompt(targets, level, questionCount = 10) {
+  const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
+  const targetsStr = targets.join("、");
+  
+  return `你是一位成語測驗出題老師，專門為不同程度的學習者設計成語配對遊戲。
+
+請針對以下成語列表：「${targetsStr}」，設計一個成語填空配對遊戲 (共 ${questionCount} 題)。內容必須適合「${levelDesc}」程度。
+
+請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
+陣列中每個物件代表一個配對，格式必須嚴格如下：
+
+[
+  {
+    "id": "1",
+    "idiom": "一石二鳥", // 成語
+    "sentence": "這件事如果能做成，那就是_____，既省錢又省事。", // 例句，請務必將該成語挖空，並以 _____ (5個底線) 表示
+    "explanation": "這句成語的意思是做一件事可以得到兩種好處。這裡用來形容既省錢又省事的情況。" // 解析 (純繁體中文，禁止任何英文翻譯或括號內的英文說明)
+  },
+  ...
+]
+
+出題規則：
+1. 請從列表中選擇 ${questionCount} 個適合的成語，為每一個選中的成語設計一個例句，總共 ${questionCount} 題。若列表長度大於 ${questionCount}，請挑選其中 ${questionCount} 個成語出題即可，不需全部使用。
+2. 例句中必須包含該成語，但該成語的部分必須挖空。
+3. 挖空處請統一使用 5 個底線 "_____"。
+4. 嚴禁在挖空處使用括號包圍 (如 (_____) 或 （_____）)，除非是句子文法本身需要。
+5. 嚴禁在句子中包含答案 (成語本身)。
+6. 句子難易度與情境需符合「${levelDesc}」。
+7. 若輸入成語數量不足 ${questionCount}，請重複使用成語但設計不同的例句，直到達到 ${questionCount} 題。
+8. 嚴格使用「繁體中文」（臺灣用語），絕不可出現簡體字或中國大陸用語。
+9. 請務必提供「explanation」欄位，用繁體中文清楚解釋成語意思，以及為什麼這個情境適合用這個成語，幫助學生學習。
+10. **絕對禁止**在題目、句子、選項或解析中包含任何英文翻譯、英文解釋或英文單字。請檢查並移除所有 "(English: ...)" 或 "(Literal meaning: ...)" 格式的內容。
 `;
 }
 
@@ -189,11 +237,18 @@ function buildQuizPrompt(targets, level, type = 'idiom') {
  * @param {string[]} targets
  * @param {"junior"|"senior"} level
  * @param {{ apiKey?: string, providerId?: string, model?: string, baseURL?: string }} options
- * @param {'idiom'|'english'} type
+ * @param {'idiom'|'english'|'idiom-matching'} type
+ * @param {number} questionCount
  */
-export async function generateQuizWithLLM(targets, level, options = {}, type = 'idiom') {
+export async function generateQuizWithLLM(targets, level, options = {}, type = 'idiom', questionCount = 5) {
   const { client, model } = getClientAndModel(options);
-  const prompt = buildQuizPrompt(targets, level, type);
+  
+  let prompt;
+  if (type === 'idiom-matching') {
+    prompt = buildMatchingQuizPrompt(targets, level, questionCount);
+  } else {
+    prompt = buildQuizPrompt(targets, level, type, questionCount);
+  }
 
   const response = await client.chat.completions.create({
     model,
@@ -215,15 +270,32 @@ export async function generateQuizWithLLM(targets, level, options = {}, type = '
     if (!Array.isArray(result)) {
       throw new Error("回傳格式不是陣列");
     }
-    // Ensure each question has a target field if missing (heuristic match)
-    return result.map(q => {
-        if (!q.target) {
-            // Try to find which target is in the answer or question
-            const matched = targets.find(t => q.answer.includes(t) || q.question.includes(t));
-            if (matched) q.target = matched;
-        }
-        return q;
-    });
+
+    // Force truncate to requested count
+    const slicedResult = result.slice(0, questionCount);
+
+    let finalResult = slicedResult;
+
+    // Matching type doesn't need the legacy target check
+    if (type !== 'idiom-matching') {
+       // Ensure each question has a target field if missing (heuristic match)
+       finalResult = slicedResult.map(q => {
+          if (!q.target) {
+              // Try to find which target is in the answer or question
+              const matched = targets.find(t => q.answer.includes(t) || q.question.includes(t));
+              if (matched) q.target = matched;
+          }
+          return q;
+      });
+    }
+
+    return {
+      questions: finalResult,
+      debug: {
+        prompt,
+        rawResponse: content
+      }
+    };
   } catch (e) {
     console.error("JSON parse error (Quiz):", content);
     throw new Error("模型回傳格式錯誤，請重試");
@@ -288,7 +360,13 @@ export async function explainEnglishWithLLM(word, level, options = {}) {
   const content = response.choices[0].message.content;
   try {
     const cleanContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
-    return JSON.parse(cleanContent);
+    return {
+      data: JSON.parse(cleanContent),
+      debug: {
+        prompt,
+        rawResponse: content
+      }
+    };
   } catch (e) {
     console.error("JSON parse error (English):", content);
     throw new Error("模型回傳格式錯誤，請重試");
@@ -298,11 +376,11 @@ export async function explainEnglishWithLLM(word, level, options = {}) {
 /**
  * 建立自訂測驗的 Prompt
  */
-function buildCustomQuizPrompt(description, level) {
+function buildCustomQuizPrompt(description, level, questionCount = 10) {
   const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   return `你是一位英文測驗出題老師，專門為不同程度的學習者設計英文測驗。
 
-請針對使用者的描述：「${description}」，設計 10 題相關的英文選擇題。內容必須適合「${levelDesc}」程度。
+請針對使用者的描述：「${description}」，設計 ${questionCount} 題相關的英文選擇題。內容必須適合「${levelDesc}」程度。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -323,9 +401,9 @@ function buildCustomQuizPrompt(description, level) {
 出題規則：
 1. 題目類型請混合 meaning, usage, dialogue。
 2. 題目內容需與使用者描述的主題高度相關。
-3. 選項必須有 4 個。
+3. 選項必須有 4 個，誘答選項(Distractors)必須具備誘答性，不能太過離譜。
 4. 內容與英文句子難易度需符合「${levelDesc}」。
-5. 總數需為 10 題。
+5. 總數需為 ${questionCount} 題。
 `;
 }
 
@@ -334,10 +412,11 @@ function buildCustomQuizPrompt(description, level) {
  * @param {string} description
  * @param {"junior"|"senior"} level
  * @param {{ apiKey?: string, providerId?: string, model?: string, baseURL?: string }} options
+ * @param {number} questionCount
  */
-export async function generateCustomQuizWithLLM(description, level, options = {}) {
+export async function generateCustomQuizWithLLM(description, level, options = {}, questionCount = 10) {
   const { client, model } = getClientAndModel(options);
-  const prompt = buildCustomQuizPrompt(description, level);
+  const prompt = buildCustomQuizPrompt(description, level, questionCount);
 
   const response = await client.chat.completions.create({
     model,
@@ -359,7 +438,13 @@ export async function generateCustomQuizWithLLM(description, level, options = {}
     if (!Array.isArray(result)) {
       throw new Error("回傳格式不是陣列");
     }
-    return result;
+    return {
+      questions: result.slice(0, questionCount),
+      debug: {
+        prompt,
+        rawResponse: content
+      }
+    };
   } catch (e) {
     console.error("JSON parse error (Custom Quiz):", content);
     throw new Error("模型回傳格式錯誤，請重試");

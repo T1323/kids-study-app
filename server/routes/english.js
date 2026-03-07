@@ -12,18 +12,18 @@ export async function postEnglishExplain(req, res) {
     // Default to "junior" if not provided or empty
     const validLevel = (typeof level === "string" && level.trim()) ? level.trim() : "junior";
 
-    const result = await explainEnglishWithLLM(word, validLevel, {
+    const { data, debug } = await explainEnglishWithLLM(word, validLevel, {
       apiKey,
       providerId: provider,
       model,
       baseURL,
     });
 
-    if (result.status === "not_found") {
+    if (data.status === "not_found") {
       return res.status(404).json({ error: "找不到該單字或無法解釋" });
     }
 
-    res.json(result);
+    res.json({ ...data, debug });
   } catch (error) {
     console.error("English explain error:", error);
     res.status(500).json({ error: error.message || "伺服器錯誤" });

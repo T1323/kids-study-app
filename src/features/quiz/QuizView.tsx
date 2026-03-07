@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { UserProgressData, saveProgress, saveEnglishProgress } from '../sync/services/googleDrive';
 import { QuizSetup } from './components/QuizSetup';
 import { QuizGame } from './components/QuizGame';
+import { QuizMatchingGame } from './components/QuizMatchingGame';
 import { QuizResultView } from './components/QuizResultView';
-import { QuizQuestion, QuizResult } from './types';
+import { MatchingResultView } from './components/MatchingResultView';
+import { QuizQuestion, QuizResult, MatchingPair } from './types';
 import { useGlobalContext } from '../../context/GlobalContext';
 
 interface Props {
@@ -31,12 +33,19 @@ export const QuizView: React.FC<Props> = ({
   const { appFolderId } = useGlobalContext();
   const [phase, setPhase] = useState<'setup' | 'playing' | 'result'>('setup');
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [matchingPairs, setMatchingPairs] = useState<MatchingPair[]>([]);
+  const [gameType, setGameType] = useState<'multiple-choice' | 'matching'>('multiple-choice');
   const [results, setResults] = useState<QuizResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleStart = (qs: QuizQuestion[]) => {
-    setQuestions(qs);
+  const handleStart = (qs: QuizQuestion[] | MatchingPair[], type: 'multiple-choice' | 'matching') => {
+    setGameType(type);
+    if (type === 'matching') {
+        setMatchingPairs(qs as MatchingPair[]);
+    } else {
+        setQuestions(qs as QuizQuestion[]);
+    }
     setPhase('playing');
   };
 
@@ -46,16 +55,30 @@ export const QuizView: React.FC<Props> = ({
     updateProficiency(rs);
   };
 
+  const handleMatchingComplete = (rs: QuizResult[]) => {
+    setResults(rs);
+    setPhase('result');
+    // Optional: update proficiency for matching game too
+    updateProficiency(rs); 
+  };
+
   const updateProficiency = async (rs: QuizResult[]) => {
     const newData = { ...data };
     const now = Date.now();
 
     rs.forEach(r => {
       // Find the question to get the target idiom
-      const q = questions.find(q => q.id === r.questionId);
-      if (!q) return;
-
-      const target = q.target;
+      let target = '';
+      if (gameType === 'multiple-choice') {
+          const q = questions.find(q => q.id === r.questionId);
+          if (q) target = q.target;
+      } else {
+          // For matching, the questionId is the pairId, and we need to find the idiom
+          const p = matchingPairs.find(p => p.id === r.questionId);
+          if (p) target = p.idiom;
+      }
+      
+      if (!target) return;
       
       if (quizMode === 'idiom') {
         if (newData.idioms && newData.idioms[target]) {
@@ -100,6 +123,7 @@ export const QuizView: React.FC<Props> = ({
   const handleClose = () => {
     setPhase('setup');
     setQuestions([]);
+    setMatchingPairs([]);
     setResults([]);
   };
 
@@ -131,18 +155,37 @@ export const QuizView: React.FC<Props> = ({
       )}
 
       {phase === 'playing' && (
-        <QuizGame 
-          questions={questions}
-          onComplete={handleComplete}
-        />
+        <>
+            {gameType === 'multiple-choice' ? (
+                <QuizGame 
+                  questions={questions}
+                  onComplete={handleComplete}
+                />
+            ) : (
+                <QuizMatchingGame 
+                  pairs={matchingPairs}
+                  onComplete={handleMatchingComplete}
+                />
+            )}
+        </>
       )}
 
       {phase === 'result' && (
-        <QuizResultView 
-          results={results}
-          questions={questions}
-          onClose={handleClose}
-        />
+        <>
+            {gameType === 'multiple-choice' ? (
+                <QuizResultView 
+                  results={results}
+                  questions={questions}
+                  onClose={handleClose}
+                />
+            ) : (
+                <MatchingResultView 
+                  results={results}
+                  pairs={matchingPairs}
+                  onClose={handleClose}
+                />
+            )}
+        </>
       )}
 
       <style>{`

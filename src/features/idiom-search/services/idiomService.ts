@@ -60,7 +60,14 @@ export async function fetchIdiomExplain(
       (body as { error?: string })?.error || `請求失敗（${res.status}）`
     );
   }
-  return res.json();
+  const data = await res.json();
+  if (data.debug) {
+    console.group("LLM Debug Info (Idiom)");
+    console.log("Prompt:", data.debug.prompt);
+    console.log("Raw Response:", data.debug.rawResponse);
+    console.groupEnd();
+  }
+  return data;
 }
 
 /**

@@ -24,5 +24,13 @@ export async function fetchEnglishExplain(
   }
 
   const data = await res.json();
+  
+  if (data.debug) {
+    console.group("LLM Debug Info (English)");
+    console.log("Prompt:", data.debug.prompt);
+    console.log("Raw Response:", data.debug.rawResponse);
+    console.groupEnd();
+  }
+
   return data;
 }
