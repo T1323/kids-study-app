@@ -48,6 +48,12 @@ export const MainLayout = () => {
               }}>
                 英文
               </Link>
+              <Link to="/writing" style={{ 
+                 textDecoration: location.pathname.includes("writing") ? "underline" : "none",
+                 fontWeight: location.pathname.includes("writing") ? "bold" : "normal"
+              }}>
+                寫作
+              </Link>
             </nav>
           </div>
 
