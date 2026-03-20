@@ -1,6 +1,6 @@
 import { IdiomExplain, IdiomExplainRequest } from "../types";
 
-const API_BASE =
+export const API_BASE =
   typeof import.meta.env.VITE_API_BASE_URL === "string" &&
   import.meta.env.VITE_API_BASE_URL.trim() !== ""
     ? import.meta.env.VITE_API_BASE_URL.trim().replace(/\/$/, "")
