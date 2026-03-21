@@ -15,10 +15,22 @@ export const MainLayout = () => {
     level,
     setLevel,
     quizQuestionCount,
-    setQuizQuestionCount
+    setQuizQuestionCount,
+    isWritingUnsaved
   } = useGlobalContext();
   const location = useLocation();
   const [showSettings, setShowSettings] = useState(false);
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isWritingUnsaved && location.pathname.includes("writing")) {
+      const confirmLeave = window.confirm(
+        "您有未儲存的寫作進度，請問確定要離開嗎？\n(離開後未儲存的變更將會遺失)"
+      );
+      if (!confirmLeave) {
+        e.preventDefault();
+      }
+    }
+  };
 
   return (
     <div className="app-root">
@@ -32,26 +44,26 @@ export const MainLayout = () => {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-            <Link to="/" style={{ textDecoration: "none", color: "inherit" }}>
+            <Link to="/" style={{ textDecoration: "none", color: "inherit" }} onClick={handleNavClick}>
               <h1>學習好幫手</h1>
             </Link>
             <nav style={{ display: "flex", gap: "10px" }}>
               <Link to="/idioms" style={{ 
                 textDecoration: location.pathname.includes("idioms") ? "underline" : "none",
                 fontWeight: location.pathname.includes("idioms") ? "bold" : "normal"
-              }}>
+              }} onClick={handleNavClick}>
                 成語
               </Link>
               <Link to="/english" style={{ 
                  textDecoration: location.pathname.includes("english") ? "underline" : "none",
                  fontWeight: location.pathname.includes("english") ? "bold" : "normal"
-              }}>
+              }} onClick={handleNavClick}>
                 英文
               </Link>
               <Link to="/writing" style={{ 
                  textDecoration: location.pathname.includes("writing") ? "underline" : "none",
                  fontWeight: location.pathname.includes("writing") ? "bold" : "normal"
-              }}>
+              }} onClick={handleNavClick}>
                 寫作
               </Link>
             </nav>
@@ -193,7 +205,7 @@ export const MainLayout = () => {
         )}
       </header>
 
-      <main className="app-main">
+      <main className={`app-main ${location.pathname.includes("writing") ? "writing-mode" : ""}`}>
         <Outlet />
       </main>
     </div>

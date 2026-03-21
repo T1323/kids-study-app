@@ -34,6 +34,8 @@ interface GlobalContextType {
   setQuizQuestionCount: (count: 5 | 10) => void;
   settingsLoaded: boolean;
   appFolderId: string | null;
+  isWritingUnsaved: boolean;
+  setIsWritingUnsaved: (unsaved: boolean) => void;
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
@@ -86,6 +88,9 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     setQuizQuestionCountState(count);
     localStorage.setItem("quiz_question_count", count.toString());
   };
+
+  // 4.5 Unsaved Changes Tracking
+  const [isWritingUnsaved, setIsWritingUnsaved] = useState(false);
 
   // 5. Sync Settings with Google Drive
   // Load Settings from Drive on Login
@@ -186,6 +191,8 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
         setQuizQuestionCount,
         settingsLoaded,
         appFolderId,
+        isWritingUnsaved,
+        setIsWritingUnsaved,
       }}
     >
       {children}

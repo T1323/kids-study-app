@@ -1,6 +1,8 @@
 export const SETTINGS_FILE_NAME = "kids-study-app-settings.json";
 export const PROGRESS_FILE_NAME = "kids-study-app-progress.json";
 export const ENGLISH_PROGRESS_FILE_NAME = "kids-study-app-english-progress.json";
+export const WRITING_SESSIONS_FILE_NAME = "kids-study-app-writing-sessions.json";
+export const WRITING_PROGRESS_FILE_NAME = "kids-study-app-writing-progress.json";
 export const FOLDER_NAME = "kids-study-app";
 
 // Keep for backward compatibility during refactor, but better to use specific constants
@@ -39,10 +41,30 @@ export interface CustomChallengeHistory {
   timestamp: number;
 }
 
+export interface WritingProgressReport {
+  timestamp: string;
+  current_level: number;
+  focus_point: string;
+  improvement: string;
+  next_goal: string;
+}
+
+export interface WritingSessionRecord {
+  id: string;
+  topic: string;
+  content: string;
+  materials: string[];
+  chatHistory: { role: 'user' | 'assistant', content: string }[];
+  gradingResults: any[];
+  lastModified: number;
+}
+
 export interface UserProgressData {
   idioms?: Record<string, IdiomProgress>;
   english?: Record<string, EnglishProgress>;
   customChallenges?: CustomChallengeHistory[];
+  writingSessions?: WritingSessionRecord[];
+  writingProgressReports?: WritingProgressReport[];
   lastSynced: number;
 }
 
@@ -292,6 +314,14 @@ export const saveProgress = async (accessToken: string, content: UserProgressDat
 
 export const saveEnglishProgress = async (accessToken: string, content: UserProgressData, folderId?: string): Promise<void> => {
     return saveFileToDrive(accessToken, ENGLISH_PROGRESS_FILE_NAME, content, folderId);
+};
+
+export const saveWritingSessions = async (accessToken: string, content: WritingSessionRecord[], folderId?: string): Promise<void> => {
+  return saveFileToDrive(accessToken, WRITING_SESSIONS_FILE_NAME, content, folderId);
+};
+
+export const saveWritingProgress = async (accessToken: string, content: WritingProgressReport[], folderId?: string): Promise<void> => {
+  return saveFileToDrive(accessToken, WRITING_PROGRESS_FILE_NAME, content, folderId);
 };
 
 // Deprecated: Alias for backward compatibility if needed, but prefer saveSettings
