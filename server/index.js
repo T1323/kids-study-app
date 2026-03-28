@@ -5,6 +5,7 @@ import { getProviders, detectProvider, postExplain } from "./routes/idiom.js";
 import { postGenerateQuiz } from "./routes/quiz.js";
 import { postEnglishExplain } from "./routes/english.js";
 import { postWritingChat, postGradeWriting } from "./routes/writing.js";
+import { postFetchModels } from "./routes/models.js";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -19,6 +20,7 @@ app.post("/api/quiz/generate", postGenerateQuiz);
 app.post("/api/english/explain", postEnglishExplain);
 app.post("/api/writing/chat", postWritingChat);
 app.post("/api/writing/grade", postGradeWriting);
+app.post("/api/models/fetch", postFetchModels);
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });

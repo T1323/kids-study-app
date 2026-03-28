@@ -34,6 +34,29 @@ export async function fetchDetectProvider(key: string): Promise<{ provider: stri
 }
 
 /**
+ * 依據 API Key 取得可用的模型清單
+ */
+export async function fetchAvailableModels(
+  apiKey: string,
+  providerId: string,
+  customBaseURL?: string
+): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/api/models/fetch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey, providerId, customBaseURL }),
+  });
+  
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "無法取得模型清單，請檢查 API Key 是否有效。");
+  }
+  
+  const data = await res.json();
+  return data.models || [];
+}
+
+/**
  * 呼叫後端 API，由 LLM 生成成語說明。
  */
 export async function fetchIdiomExplain(

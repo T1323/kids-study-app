@@ -3,6 +3,7 @@ import "./ModelSettings.css";
 import {
   fetchProviders,
   fetchDetectProvider,
+  fetchAvailableModels,
   type ProviderOption,
 } from "../services/idiomService";
 
@@ -27,7 +28,11 @@ export function ModelSettings({ value = {
 }, onChange, disabled }: Props) {
   const [list, setList] = useState<ProviderOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const detectLock = useRef(false);
+  const fetchTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     // 1. Load Providers
@@ -51,12 +56,17 @@ export function ModelSettings({ value = {
       fetchDetectProvider(savedKey).then(({ provider }) => {
         if (!cancelled && provider) {
           onChange({ ...value, apiKey: savedKey, providerId: provider });
+          // Fetch models for saved key automatically
+          handleFetchModels(savedKey, provider);
         }
       });
     }
 
     return () => {
       cancelled = true;
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
@@ -65,8 +75,39 @@ export function ModelSettings({ value = {
     onChange({ ...value, providerId });
   };
 
+  const scheduleFetchModels = (key: string, provider: string) => {
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    
+    // Clear models if key is empty
+    if (!key.trim()) {
+      setAvailableModels([]);
+      setErrorMsg("");
+      return;
+    }
+
+    // Set a timeout to fetch models after user stops typing
+    fetchTimeoutRef.current = window.setTimeout(() => {
+      handleFetchModels(key, provider);
+    }, 1500);
+  };
+
   const handleApiKeyChange = (apiKey: string) => {
     onChange({ ...value, apiKey });
+    
+    // Auto detect provider immediately on change to use in fetch
+    if (!detectLock.current && apiKey.trim()) {
+       fetchDetectProvider(apiKey).then(({ provider }) => {
+          const currentProviderId = provider || value.providerId;
+          if (provider && list.some((p) => p.id === provider)) {
+            onChange({ ...value, apiKey, providerId: provider });
+          }
+          scheduleFetchModels(apiKey, currentProviderId);
+       });
+    } else {
+       scheduleFetchModels(apiKey, value.providerId);
+    }
   };
 
   const handleSaveKey = () => {
@@ -100,39 +141,53 @@ export function ModelSettings({ value = {
     onChange({ ...value, customModel: model });
   };
 
+  const handleFetchModels = async (keyInput?: string, providerInput?: string) => {
+    const key = (keyInput !== undefined ? keyInput : value.apiKey).trim();
+    const providerId = providerInput !== undefined ? providerInput : value.providerId;
+
+    if (!key) {
+      setErrorMsg("請先輸入 API Key");
+      return;
+    }
+    setIsLoadingModels(true);
+    setErrorMsg("");
+    try {
+      const models = await fetchAvailableModels(
+        key,
+        providerId,
+        providerId === "custom" ? value.customBaseURL : undefined
+      );
+      setAvailableModels(models);
+      if (models.length > 0 && !models.includes(value.customModel)) {
+        // Automatically select the first available model if current is empty or not in list
+        if (!value.customModel) {
+          onChange({ ...value, apiKey: key, providerId, customModel: models[0] });
+        }
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "驗證失敗");
+      setAvailableModels([]);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
   const currentProvider = list.find((p) => p.id === value.providerId);
   const isCustom = value.providerId === "custom";
 
   if (loading) {
     return (
       <div className="model-settings">
-        <p className="model-settings-loading">載入模型選項…</p>
+        <p className="model-settings-loading">載入設定…</p>
       </div>
     );
   }
 
   return (
     <div className="model-settings">
-      <div className="model-settings-row">
-        <label className="model-settings-label" htmlFor="model-provider">
-          選擇服務 / 模型
-        </label>
-        <select
-          id="model-provider"
-          className="model-settings-select"
-          value={value.providerId}
-          onChange={(e) => handleProviderChange(e.target.value)}
-          disabled={disabled}
-        >
-          {list.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-          <option value="custom">自訂 (Custom)</option>
-        </select>
+      <div className="model-settings-row" style={{ marginBottom: "12px", justifyContent: "flex-end" }}>
         {currentProvider?.getKeyUrl && (
-          <span className="model-settings-help">
+          <span className="model-settings-help" style={{ fontSize: "0.9em" }}>
             沒有 Key？
             <a
               href={currentProvider.getKeyUrl}
@@ -154,11 +209,9 @@ export function ModelSettings({ value = {
             id="model-apikey"
             className="model-settings-input"
             type="password"
-            placeholder="貼上或輸入 API Key，會自動判斷服務"
+            placeholder="貼上或輸入 API Key，會自動判斷服務並載入模型"
             value={value.apiKey}
             onChange={(e) => handleApiKeyChange(e.target.value)}
-            onBlur={handleApiKeyBlur}
-            onPaste={() => setTimeout(handleApiKeyBlur, 0)}
             disabled={disabled}
             autoComplete="off"
             aria-label="API Key"
@@ -178,6 +231,40 @@ export function ModelSettings({ value = {
           </button>
         </div>
       </div>
+
+      {isLoadingModels && (
+        <div className="model-settings-row" style={{ marginTop: "4px", color: "#666", fontSize: "0.9em", textAlign: "right", justifyContent: "flex-end" }}>
+          驗證中...
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="model-settings-row" style={{ color: "red", fontSize: "0.9em", marginTop: "4px", textAlign: "right", justifyContent: "flex-end" }}>
+          {errorMsg}
+        </div>
+      )}
+
+      {availableModels.length > 0 && (
+        <div className="model-settings-row" style={{ marginTop: "12px" }}>
+          <label className="model-settings-label" htmlFor="model-select">
+            選擇可用模型
+          </label>
+          <select
+            id="model-select"
+            className="model-settings-select"
+            value={value.customModel}
+            onChange={(e) => onChange({ ...value, customModel: e.target.value })}
+            disabled={disabled}
+          >
+            <option value="">-- 使用服務預設模型 --</option>
+            {availableModels.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {isCustom && (
         <>
