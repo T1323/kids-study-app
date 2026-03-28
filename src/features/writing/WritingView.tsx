@@ -102,6 +102,20 @@ export const WritingView = () => {
     }
   }, [accessToken]);
 
+  // Auto-save when messages change (after AI responds)
+  useEffect(() => {
+    if (accessToken && isTopicSet && messages.length > 0) {
+      // 只有在最後一則訊息是 AI 回覆時才自動儲存 (代表一次完整對話結束)
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        const timer = setTimeout(() => {
+          handleSaveSession(undefined, true); // silent save
+        }, 1500); // debounce
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [messages, accessToken, isTopicSet]);
+
   const loadSavedSessions = async () => {
     if (!accessToken) return;
     setIsSyncing(true);
@@ -126,18 +140,20 @@ export const WritingView = () => {
     }
   };
 
-  const handleSaveSession = async (latestGradingResults?: GradingRecord[]) => {
+  const handleSaveSession = async (latestGradingResults?: GradingRecord[], silent: boolean = false) => {
     if (!accessToken) {
-      alert('請先登入 Google 帳號以儲存紀錄。');
+      if (!silent) alert('請先登入 Google 帳號以儲存紀錄。');
       return;
     }
     if (!topic.trim()) {
-      alert('請先設定寫作主題再儲存。');
+      if (!silent) alert('請先設定寫作主題再儲存。');
       return;
     }
 
-    setIsSyncing(true);
-    setSyncStatus('正在儲存進度至雲端...');
+    if (!silent) {
+      setIsSyncing(true);
+      setSyncStatus('正在儲存進度至雲端...');
+    }
 
     const currentResults = latestGradingResults || gradingResults;
     const currentTopic = topic.trim();
@@ -181,16 +197,22 @@ export const WritingView = () => {
       await saveWritingSessions(accessToken, updatedSessions, folderId || undefined);
       
       setSavedSessions(updatedSessions);
-      setSyncStatus('儲存成功！');
+      if (!silent) {
+        setSyncStatus('儲存成功！');
+        setTimeout(() => setSyncStatus(''), 3000);
+      }
       setHasUnsavedChanges(false); // 儲存成功後重置狀態
       setIsWritingUnsaved(false);
-      setTimeout(() => setSyncStatus(''), 3000);
     } catch (error) {
       console.error('Failed to save session:', error);
-      setSyncStatus('儲存失敗');
-      setTimeout(() => setSyncStatus(''), 3000);
+      if (!silent) {
+        setSyncStatus('儲存失敗');
+        setTimeout(() => setSyncStatus(''), 3000);
+      }
     } finally {
-      setIsSyncing(false);
+      if (!silent) {
+        setIsSyncing(false);
+      }
     }
   };
 
@@ -332,9 +354,9 @@ export const WritingView = () => {
       // 放到陣列最前面
       setGradingResults(prev => {
         const newResults = [newRecord, ...prev];
-        // 批改完成後自動觸發儲存雲端紀錄
+        // 批改完成後自動觸發儲存雲端紀錄 (silent save)
         if (accessToken && topic.trim()) {
-          handleSaveSession(newResults);
+          handleSaveSession(newResults, true);
         }
         return newResults;
       });
