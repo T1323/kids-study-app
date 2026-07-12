@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useGlobalContext } from '../../../context/GlobalContext';
 import { UserProgressData } from '../../sync/services/googleDrive';
 import { generateQuiz } from '../../quiz/services/quizService';
 import { QuizQuestion } from '../../quiz/types';
@@ -27,6 +28,7 @@ export const CustomChallengeSetup: React.FC<Props> = ({
   setError,
   onDeleteHistory,
 }) => {
+  const { quizQuestionCount } = useGlobalContext();
   const [description, setDescription] = useState('');
 
   const handleStart = async (desc: string) => {
@@ -46,6 +48,7 @@ export const CustomChallengeSetup: React.FC<Props> = ({
         provider: modelSettings.providerId,
         model: modelSettings.customModel,
         baseURL: modelSettings.customBaseURL,
+        questionCount: quizQuestionCount,
       });
 
       onStart(questions as QuizQuestion[], desc.trim());
