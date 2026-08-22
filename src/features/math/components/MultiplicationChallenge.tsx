@@ -7,7 +7,7 @@ import {
   saveProgressCloud,
   MathProgress,
   MathProgressEntry,
-} from "../services/mathService";
+} from "../services/mathService.ts";
 
 export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 20 }) => {
   const { accessToken, appFolderId } = useGlobalContext();
