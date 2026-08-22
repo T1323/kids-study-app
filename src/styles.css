@@ -382,3 +382,31 @@ body {
   }
 }
 
+/* Encouragement animation for Math challenge */
+.encouragement-animate {
+  display: inline-block;
+  animation: pop 900ms cubic-bezier(.2,.8,.2,1);
+  transform-origin: center;
+  padding: 0.08rem 0.45rem;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e6fff7, #e8fff6);
+  box-shadow: 0 10px 26px rgba(42,157,143,0.12);
+}
+
+@keyframes pop {
+  0% { transform: scale(0.86); opacity: 0; }
+  50% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Hide numeric input spinners for the small answer field */
+input[aria-label="answer"]::-webkit-outer-spin-button,
+input[aria-label="answer"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[aria-label="answer"] {
+  -moz-appearance: textfield; /* Firefox */
+  appearance: textfield;
+}
+
