@@ -36,14 +36,19 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
   const submitAnswer = async () => {
     if (!current) return;
     // Prefer React state, but fall back to DOM-parsed values to determine correctness
-    let numeric = parseInt(answer || "0", 10);
+    let numeric = Number(answer?.toString().trim());
+    if (!isFinite(numeric)) numeric = NaN;
     let expected = current.a * current.b;
     if (typeof document !== 'undefined') {
       const el = document.querySelector('input[aria-label="answer"]') as HTMLInputElement | null;
-      if (el) numeric = parseInt(el.value || "0", 10);
-      const qDom = Array.from(document.querySelectorAll('div,span')).find(e => /\d+\s*×\s*\d+/.test((e.textContent||'')));
+      if (el) {
+        const v = (el.value || '').toString().trim();
+        const parsed = Number(v);
+        if (isFinite(parsed)) numeric = parsed;
+      }
+      const qDom = document.querySelector('div[aria-label="current-question"]');
       if (qDom) {
-        const m = (qDom.textContent||'').match(/(\d+)\s*×\s*(\d+)/);
+        const m = (qDom.textContent || '').match(/(\d+)\s*×\s*(\d+)/);
         if (m) expected = Number(m[1]) * Number(m[2]);
       }
     }
@@ -76,28 +81,7 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
     }
   };
 
-  const skipQuestion = () => {
-    // treat skip as incorrect attempt
-    if (!current) return;
-    const now = Date.now();
-    const elapsed = questionStartTime ? (now - questionStartTime) / 1000 : 0;
-    const newProgress = { ...progress };
-    recordAnswerLocal(newProgress, current.a, current.b, false, elapsed);
-    setProgress(newProgress);
-    const key = `${current.a}x${current.b}`;
-    const avg = (newProgress as any)[key]?.avgTimeSeconds;
-    setHistory(h => [...h, { a: current.a, b: current.b, correct: false, elapsed, avg }]);
-    setAnswer("");
-    setQuestionStartTime(Date.now());
-    if (index + 1 >= questions.length) {
-      setFinished(true);
-      const msg = getEncouragement(score, questions.length);
-      setEncouragement(msg);
-      saveProgressCloud(accessToken, appFolderId, newProgress);
-    } else {
-      setIndex(i => i + 1);
-    }
-  };
+  // skip functionality removed: users must answer each question
 
   const restart = () => {
     const q = pickQuestions(total, progress).map(p => ({ a: p.a, b: p.b }));
@@ -171,7 +155,7 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
           <div style={{ fontSize: "2rem" }}>
             題目 {index + 1} / {questions.length}
           </div>
-          <div style={{ fontSize: "3rem", fontWeight: 700 }}>{current.a} × {current.b} = </div>
+          <div aria-label="current-question" style={{ fontSize: "3rem", fontWeight: 700 }}>{current.a} × {current.b} = </div>
           <div>
             <input
               type="number"
@@ -187,7 +171,6 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
 
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button onClick={submitAnswer} style={{ padding: "8px 12px" }}>提交</button>
-            <button onClick={skipQuestion} style={{ padding: "8px 12px" }}>跳過</button>
           </div>
 
           <div>目前分數：{score}</div>
