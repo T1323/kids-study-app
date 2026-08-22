@@ -7,7 +7,7 @@ import {
   saveProgressCloud,
   MathProgress,
   MathProgressEntry,
-} from "../services/mathService.ts";
+} from "../services/mathService";
 
 export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 20 }) => {
   const { accessToken, appFolderId } = useGlobalContext();
@@ -23,7 +23,8 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
   const [animateEncouragement, setAnimateEncouragement] = useState(false);
 
   useEffect(() => {
-    const q = pickQuestions(total, progress).map((p: { a: number; b: number }) => ({ a: p.a, b: p.b }));
+    const raw = pickQuestions(total, progress) as Array<{ a: number; b: number }>;
+    const q = raw.map((p) => ({ a: p.a, b: p.b }));
     setQuestions(q);
   }, [total]);
 
@@ -85,7 +86,8 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
   // skip functionality removed: users must answer each question
 
   const restart = () => {
-    const q = pickQuestions(total, progress).map(p => ({ a: p.a, b: p.b }));
+    const raw = pickQuestions(total, progress) as Array<{ a: number; b: number }>;
+    const q = raw.map((p) => ({ a: p.a, b: p.b }));
     setQuestions(q);
     setIndex(0);
     setAnswer("");
