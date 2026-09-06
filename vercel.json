@@ -1,4 +1,5 @@
 {
+  "installCommand": "npm install --dangerously-allow-all-scripts",
   "rewrites": [
     {
       "source": "/api/(.*)",
