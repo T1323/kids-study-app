@@ -1,5 +1,8 @@
 {
   "installCommand": "NPM_CONFIG_ALLOW_SCRIPTS= npm install",
+  "env": {
+    "NPM_CONFIG_ALLOW_SCRIPTS": ""
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
