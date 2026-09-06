@@ -3,12 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "allowScripts": ["@swc/core", "esbuild"],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "local:build-preview": "npm run build && npm run preview",
     "server": "node server/index.js"
   },
   "dependencies": {
