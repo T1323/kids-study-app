@@ -6,7 +6,6 @@ import {
   recordAnswerLocal,
   saveProgressCloud,
   MathProgress,
-  MathProgressEntry,
 } from "../services/mathService";
 
 export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 20 }) => {
@@ -23,8 +22,7 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
   const [animateEncouragement, setAnimateEncouragement] = useState(false);
 
   useEffect(() => {
-    const raw = pickQuestions(total, progress) as Array<{ a: number; b: number }>;
-    const q = raw.map((p) => ({ a: p.a, b: p.b }));
+    const q = pickQuestions(total, progress).map(p => ({ a: p.a, b: p.b }));
     setQuestions(q);
   }, [total]);
 
@@ -65,7 +63,7 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
     setProgress(newProgress);
     // read updated avg time from newProgress
     const key = `${current.a}x${current.b}`;
-    const avg = (newProgress as any)[key as string]?.avgTimeSeconds;
+    const avg = (newProgress as any)[key]?.avgTimeSeconds;
     setHistory(h => [...h, { a: current.a, b: current.b, correct, elapsed, avg }]);
     if (correct) setScore(s => s + 1);
     setAnswer("");
@@ -145,10 +143,7 @@ export const MultiplicationChallenge: React.FC<{ total?: number }> = ({ total = 
 
   const weakest = useMemo(() => {
     // find weakest entries from progress
-    const arr = Object.entries(progress as MathProgress).map(([k, v]) => {
-      const entry = v as MathProgressEntry;
-      return { key: k, proficiency: entry.proficiency, attempts: entry.attempts };
-    });
+    const arr = Object.entries(progress).map(([k, v]) => ({ key: k, proficiency: v.proficiency, attempts: v.attempts }));
     arr.sort((a, b) => a.proficiency - b.proficiency || a.attempts - b.attempts);
     return arr.slice(0, 10);
   }, [progress]);
