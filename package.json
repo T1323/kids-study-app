@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "allowScripts": {
     "@swc/core@1.15.11": true,
     "esbuild@0.25.12": true
