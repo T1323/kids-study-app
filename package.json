@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "allow-scripts": ["@swc/core", "esbuild"],
   "allowScripts": ["@swc/core", "esbuild"],
   "scripts": {
     "dev": "vite",
