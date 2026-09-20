@@ -47,7 +47,7 @@ function getClientAndModel(options = {}) {
   };
 }
 
-async function createQuizCompletion(client, request) {
+async function createCompletionWithRetry(client, request) {
   const retryableStatuses = new Set([429, 500, 502, 503, 504]);
   const maxAttempts = 3;
 
@@ -114,7 +114,7 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
   const { client, model } = getClientAndModel(options);
   const prompt = buildPrompt(idiom, level);
 
-  const response = await client.chat.completions.create({
+  const response = await createCompletionWithRetry(client, {
     model,
     messages: [
       {
@@ -297,7 +297,7 @@ export async function generateQuizWithLLM(
     prompt = buildQuizPrompt(targets, level, type, questionCount, history);
   }
 
-  const response = await createQuizCompletion(client, {
+  const response = await createCompletionWithRetry(client, {
     model,
     messages: [
       {
