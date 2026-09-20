@@ -126,9 +126,26 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
 /**
  * 建立測驗的 Prompt (支援成語與英文)
  */
-function buildQuizPrompt(targets, level, type = 'idiom', questionCount = 10) {
+function buildHistoryInstruction(history, selectionMode, questionCount) {
+  if (!Array.isArray(history) || history.length === 0) return "";
+
+  const modeInstruction = selectionMode === "weakest"
+    ? "優先選擇 proficiency 較低，或很久沒有測驗的成語。"
+    : "優先選擇 queryTime 較近，且近期查詢過的成語。";
+
+  return `
+以下是學生最近或最不熟的成語學習紀錄（最多 200 筆）。時間欄位是 Unix 毫秒時間戳，proficiency 範圍是 0 到 100：
+${JSON.stringify(history)}
+
+請${modeInstruction}從上述紀錄中隨機選出適合的成語出題，最多使用 ${questionCount} 個不同成語。
+每一題的 target 必須完全等於上述紀錄中的 idiom，不得自行新增或修改成語。
+`;
+}
+
+function buildQuizPrompt(targets, level, type = 'idiom', questionCount = 10, history, selectionMode = 'latest') {
   const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   const targetsStr = targets.join("、");
+  const historyInstruction = buildHistoryInstruction(history, selectionMode, questionCount);
   
   if (type === 'english') {
     return `你是一位英文測驗出題老師，專門為不同程度的學習者設計英文單字測驗。
@@ -164,7 +181,7 @@ function buildQuizPrompt(targets, level, type = 'idiom', questionCount = 10) {
   // Default to idiom
   return `你是一位成語測驗出題老師，專門為不同程度的學習者設計成語測驗。
 
-請針對以下成語列表：「${targetsStr}」，設計 ${questionCount} 題選擇題。內容必須適合「${levelDesc}」程度。
+${historyInstruction || `請針對以下成語列表：「${targetsStr}」，`}設計 ${questionCount} 題選擇題。內容必須適合「${levelDesc}」程度。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個題目，格式必須嚴格如下：
@@ -197,13 +214,14 @@ function buildQuizPrompt(targets, level, type = 'idiom', questionCount = 10) {
 /**
  * 建立配對測驗的 Prompt
  */
-function buildMatchingQuizPrompt(targets, level, questionCount = 10) {
+function buildMatchingQuizPrompt(targets, level, questionCount = 10, history, selectionMode = 'latest') {
   const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   const targetsStr = targets.join("、");
+  const historyInstruction = buildHistoryInstruction(history, selectionMode, questionCount);
   
   return `你是一位成語測驗出題老師，專門為不同程度的學習者設計成語配對遊戲。
 
-請針對以下成語列表：「${targetsStr}」，設計一個成語填空配對遊戲 (共 ${questionCount} 題)。內容必須適合「${levelDesc}」程度。
+${historyInstruction || `請針對以下成語列表：「${targetsStr}」，`}設計一個成語填空配對遊戲 (共 ${questionCount} 題)。內容必須適合「${levelDesc}」程度。
 
 請「只」回傳一個 JSON 陣列 (Array)，不要其他說明或 markdown。
 陣列中每個物件代表一個配對，格式必須嚴格如下：
@@ -239,15 +257,25 @@ function buildMatchingQuizPrompt(targets, level, questionCount = 10) {
  * @param {{ apiKey?: string, providerId?: string, model?: string, baseURL?: string }} options
  * @param {'idiom'|'english'|'idiom-matching'} type
  * @param {number} questionCount
+ * @param {object[]} history
+ * @param {"latest"|"weakest"} selectionMode
  */
-export async function generateQuizWithLLM(targets, level, options = {}, type = 'idiom', questionCount = 5) {
+export async function generateQuizWithLLM(
+  targets,
+  level,
+  options = {},
+  type = 'idiom',
+  questionCount = 5,
+  history,
+  selectionMode = 'latest'
+) {
   const { client, model } = getClientAndModel(options);
   
   let prompt;
   if (type === 'idiom-matching') {
-    prompt = buildMatchingQuizPrompt(targets, level, questionCount);
+    prompt = buildMatchingQuizPrompt(targets, level, questionCount, history, selectionMode);
   } else {
-    prompt = buildQuizPrompt(targets, level, type, questionCount);
+    prompt = buildQuizPrompt(targets, level, type, questionCount, history, selectionMode);
   }
 
   const response = await client.chat.completions.create({
@@ -273,20 +301,42 @@ export async function generateQuizWithLLM(targets, level, options = {}, type = '
 
     // Force truncate to requested count
     const slicedResult = result.slice(0, questionCount);
+    const allowedTargets = Array.isArray(history) && history.length > 0
+      ? new Set(history.map((item) => item.idiom))
+      : null;
+    const usedTargets = new Set();
+    const isAllowedUniqueTarget = (target) => {
+      if (!allowedTargets || !allowedTargets.has(target) || usedTargets.has(target)) return false;
+      usedTargets.add(target);
+      return true;
+    };
 
     let finalResult = slicedResult;
 
     // Matching type doesn't need the legacy target check
     if (type !== 'idiom-matching') {
        // Ensure each question has a target field if missing (heuristic match)
-       finalResult = slicedResult.map(q => {
+       finalResult = slicedResult
+         .filter((q) => q && typeof q === "object")
+         .map(q => {
           if (!q.target) {
-              // Try to find which target is in the answer or question
-              const matched = targets.find(t => q.answer.includes(t) || q.question.includes(t));
-              if (matched) q.target = matched;
+             // Try to find which target is in the answer or question
+             const matched = targets.find(t =>
+              typeof q.answer === "string" && q.answer.includes(t) ||
+              typeof q.question === "string" && q.question.includes(t)
+             );
+             if (matched) q.target = matched;
           }
           return q;
-      });
+         })
+         .filter((q) => !allowedTargets || isAllowedUniqueTarget(q.target));
+     } else if (allowedTargets) {
+       finalResult = slicedResult
+         .filter((q) => q && typeof q === "object" && isAllowedUniqueTarget(q.idiom));
+     }
+
+     if (allowedTargets && finalResult.length < Math.min(questionCount, allowedTargets.size)) {
+      throw new Error("模型未能從學習紀錄產生足夠的有效題目，請重試");
     }
 
     return {

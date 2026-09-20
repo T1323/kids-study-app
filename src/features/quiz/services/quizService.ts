@@ -1,4 +1,5 @@
 import { QuizQuestion, MatchingPair } from "../types";
+import type { IdiomProgress } from "../../sync/services/googleDrive";
 
 const API_BASE =
   typeof import.meta.env.VITE_API_BASE_URL === "string" &&
@@ -11,6 +12,8 @@ const API_BASE =
 interface GenerateQuizRequest {
   idioms?: string[]; // Legacy support
   targets?: string[]; // New unified field
+  history?: IdiomProgress[];
+  selectionMode?: "latest" | "weakest";
   description?: string; // For custom challenge
   type?: 'idiom' | 'english' | 'idiom-matching'; // Default to idiom
   level: "junior" | "senior" | "junior-high" | "university";
@@ -24,6 +27,8 @@ interface GenerateQuizRequest {
 export async function generateQuiz(req: GenerateQuizRequest): Promise<QuizQuestion[] | MatchingPair[]> {
   const body: Record<string, unknown> = {
     targets: req.targets || req.idioms,
+    history: req.history,
+    selectionMode: req.selectionMode,
     description: req.description,
     type: req.type || 'idiom',
     level: req.level,

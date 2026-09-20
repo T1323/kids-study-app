@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useGlobalContext } from '../../../context/GlobalContext';
 import { UserProgressData } from '../../sync/services/googleDrive';
+import type { IdiomProgress } from '../../sync/services/googleDrive';
 import { generateQuiz } from '../services/quizService';
 import { QuizQuestion, MatchingPair } from '../types';
 
@@ -44,11 +45,17 @@ export const QuizSetup: React.FC<Props> = ({
     setError(null);
     try {
       let candidates: any[] = [];
+      let idiomHistory: IdiomProgress[] | undefined;
       
       if (quizMode === 'idiom') {
         const list = Object.values(data.idioms || {});
         if (list.length === 0) throw new Error("目前沒有成語學習紀錄，無法進行測驗。");
-        candidates = list;
+        // Send up to 200 relevant records so the AI can make the final selection.
+        idiomHistory = [...list]
+          .sort((a, b) => mode === 'latest'
+            ? b.queryTime - a.queryTime
+            : a.proficiency - b.proficiency || a.queryTime - b.queryTime)
+          .slice(0, 200);
       } else {
         const list = Object.values(data.english || {});
         if (list.length === 0) throw new Error("目前沒有英文學習紀錄，無法進行測驗。");
@@ -60,29 +67,18 @@ export const QuizSetup: React.FC<Props> = ({
         throw new Error(`配對遊戲至少需要 ${minItemsForMatching} 個學習紀錄才能進行。`);
       }
 
-      let selectedCandidates = [];
-      if (mode === 'latest') {
-        // 最近查詢的前 20 筆
-        selectedCandidates = candidates
-          .sort((a, b) => b.queryTime - a.queryTime)
+      let selectedTargets: string[] | undefined;
+      if (quizMode === 'english') {
+        const selectedCandidates = [...candidates]
+          .sort((a, b) => mode === 'latest'
+            ? b.queryTime - a.queryTime
+            : a.proficiency - b.proficiency || a.queryTime - b.queryTime)
           .slice(0, 20);
-      } else {
-        // 熟練度最低的前 20 筆 (熟練度相同時，優先選較早查詢的)
-        selectedCandidates = candidates
-          .sort((a, b) => a.proficiency - b.proficiency || a.queryTime - b.queryTime)
-          .slice(0, 20);
+        selectedTargets = selectedCandidates
+          .sort(() => Math.random() - 0.5)
+          .slice(0, Math.min(10, Math.max(5, selectedCandidates.length)))
+          .map(item => item.word);
       }
-
-      // Determine number of items to select for the pool (up to 10)
-      // We always send up to 10 candidates to the backend to give the LLM more variety,
-      // even if we only ask for 5 questions.
-      const poolSize = Math.min(10, Math.max(5, selectedCandidates.length));
-      
-      // 從候選名單中隨機選出 items
-      const selectedTargets = selectedCandidates
-        .sort(() => Math.random() - 0.5)
-        .slice(0, poolSize)
-        .map(item => quizMode === 'idiom' ? item.idiom : item.word);
 
       // Call API
       // If gameType is matching, we use specific type
@@ -100,6 +96,8 @@ export const QuizSetup: React.FC<Props> = ({
 
       const questions = await generateQuiz({
         targets: selectedTargets,
+        history: idiomHistory,
+        selectionMode: quizMode === 'idiom' ? mode : undefined,
         type: requestType as any,
         level: level,
         apiKey: modelSettings.apiKey,
