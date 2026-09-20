@@ -61,6 +61,12 @@ export async function postExplain(req, res) {
     console.error("[POST /api/idiom/explain]", err);
     const message = err.message || "成語說明生成失敗，請稍後再試。";
     const status = Number(err.status || err.response?.status);
-    res.status(status === 400 ? 400 : 500).json({ error: message });
+    const responseStatus = [400, 401, 403, 408, 429, 500, 502, 503, 504].includes(status)
+      ? status
+      : 500;
+    res.status(responseStatus).json({
+      error: message,
+      code: responseStatus === 429 ? "llm_quota_or_rate_limit" : undefined,
+    });
   }
 }

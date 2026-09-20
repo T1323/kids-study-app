@@ -81,7 +81,10 @@ export async function fetchIdiomExplain(
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(
-      (body as { error?: string })?.error || `請求失敗（${res.status}）`
+      (body as { error?: string })?.error ||
+        (res.status === 429
+          ? "AI 服務目前達到配額或速率限制，請稍後再試。"
+          : `請求失敗（${res.status}）`)
     );
   }
   const data = await res.json();

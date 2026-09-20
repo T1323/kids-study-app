@@ -56,6 +56,13 @@ export async function postFetchModels(req, res) {
     res.json({ models: validModels.sort() });
   } catch (err) {
     console.error("[POST /api/models/fetch]", err);
-    res.status(401).json({ error: "API Key 無效或無法取得模型清單。" });
+    const status = Number(err.status || err.response?.status);
+    const responseStatus = [400, 401, 403, 408, 429, 500, 502, 503, 504].includes(status)
+      ? status
+      : 401;
+    res.status(responseStatus).json({
+      error: err.message || "API Key 無效或無法取得模型清單。",
+      code: responseStatus === 429 ? "llm_quota_or_rate_limit" : undefined,
+    });
   }
 }
