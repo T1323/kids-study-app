@@ -126,26 +126,23 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
 /**
  * 建立測驗的 Prompt (支援成語與英文)
  */
-function buildHistoryInstruction(history, selectionMode, questionCount) {
+function buildHistoryInstruction(history, questionCount) {
   if (!Array.isArray(history) || history.length === 0) return "";
-
-  const modeInstruction = selectionMode === "weakest"
-    ? "優先選擇 proficiency 較低，或很久沒有測驗的成語。"
-    : "優先選擇 queryTime 較近，且近期查詢過的成語。";
+  const idiomPool = history.map((item) => item.idiom);
 
   return `
-以下是學生最近或最不熟的成語學習紀錄（最多 200 筆）。時間欄位是 Unix 毫秒時間戳，proficiency 範圍是 0 到 100：
-${JSON.stringify(history)}
+以下是網站依條件挑出的成語題庫（最多 50 筆）：
+${JSON.stringify(idiomPool)}
 
-請${modeInstruction}從上述紀錄中隨機選出適合的成語出題，最多使用 ${questionCount} 個不同成語。
-每一題的 target 必須完全等於上述紀錄中的 idiom，不得自行新增或修改成語。
+請從這份題庫中以等機率、無偏好的方式隨機選出 ${questionCount} 個不同成語出題。
+每一題的 target 必須完全等於上述題庫中的成語，不得自行新增或修改成語。
 `;
 }
 
-function buildQuizPrompt(targets, level, type = 'idiom', questionCount = 10, history, selectionMode = 'latest') {
+function buildQuizPrompt(targets, level, type = 'idiom', questionCount = 10, history) {
   const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   const targetsStr = targets.join("、");
-  const historyInstruction = buildHistoryInstruction(history, selectionMode, questionCount);
+  const historyInstruction = buildHistoryInstruction(history, questionCount);
   
   if (type === 'english') {
     return `你是一位英文測驗出題老師，專門為不同程度的學習者設計英文單字測驗。
@@ -202,7 +199,7 @@ ${historyInstruction || `請針對以下成語列表：「${targetsStr}」，`}�
 出題規則：
 1. 題目類型請自由混合 meaning (成語解釋), usage (情境應用), fill_in (成語填空), synonym (同義/反義詞)。
 2. 請從列表中選擇適合的成語出題，總共 ${questionCount} 題。若列表長度大於 ${questionCount}，請挑選其中 ${questionCount} 個成語出題即可，不需全部使用。
-3. 選項必須有 4 個。誘答選項(Distractors)必須具備高度誘答性，請選擇意思相近、字形相似或情境容易混淆的成語，嚴禁出現一眼就能看出的錯誤選項(如完全無關的詞彙)。
+3. 選項必須有 4 個，而且四個選項都必須從上述 50 個成語題庫中選出；請選擇意思相近、字形相似或情境容易混淆的成語，嚴禁使用題庫以外的成語。
 4. 內容與用語難易度需符合「${levelDesc}」。
 5. 若成語數量不足 ${questionCount} 個，請針對重點成語多出幾題不同類型的題目，總數需為 ${questionCount} 題。
 6. 請務必隨機打亂題目順序，不要讓同一個目標成語的題目連續出現。確保題目的分佈是隨機的。
@@ -214,10 +211,10 @@ ${historyInstruction || `請針對以下成語列表：「${targetsStr}」，`}�
 /**
  * 建立配對測驗的 Prompt
  */
-function buildMatchingQuizPrompt(targets, level, questionCount = 10, history, selectionMode = 'latest') {
+function buildMatchingQuizPrompt(targets, level, questionCount = 10, history) {
   const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   const targetsStr = targets.join("、");
-  const historyInstruction = buildHistoryInstruction(history, selectionMode, questionCount);
+  const historyInstruction = buildHistoryInstruction(history, questionCount);
   
   return `你是一位成語測驗出題老師，專門為不同程度的學習者設計成語配對遊戲。
 
@@ -273,9 +270,9 @@ export async function generateQuizWithLLM(
   
   let prompt;
   if (type === 'idiom-matching') {
-    prompt = buildMatchingQuizPrompt(targets, level, questionCount, history, selectionMode);
+    prompt = buildMatchingQuizPrompt(targets, level, questionCount, history);
   } else {
-    prompt = buildQuizPrompt(targets, level, type, questionCount, history, selectionMode);
+    prompt = buildQuizPrompt(targets, level, type, questionCount, history);
   }
 
   const response = await client.chat.completions.create({
@@ -329,7 +326,12 @@ export async function generateQuizWithLLM(
           }
           return q;
          })
-         .filter((q) => !allowedTargets || isAllowedUniqueTarget(q.target));
+          .filter((q) => {
+            if (allowedTargets && !isAllowedUniqueTarget(q.target)) return false;
+            if (!Array.isArray(q.options) || q.options.length !== 4) return false;
+            if (allowedTargets && q.options.some((option) => !allowedTargets.has(option))) return false;
+            return typeof q.answer === "string" && q.options.includes(q.answer);
+          });
      } else if (allowedTargets) {
        finalResult = slicedResult
          .filter((q) => q && typeof q === "object" && isAllowedUniqueTarget(q.idiom));

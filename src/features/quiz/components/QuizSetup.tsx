@@ -50,12 +50,12 @@ export const QuizSetup: React.FC<Props> = ({
       if (quizMode === 'idiom') {
         const list = Object.values(data.idioms || {});
         if (list.length === 0) throw new Error("目前沒有成語學習紀錄，無法進行測驗。");
-        // Send up to 200 relevant records so the AI can make the final selection.
+        // Send up to 50 relevant records so the AI can select quiz items from this pool.
         idiomHistory = [...list]
           .sort((a, b) => mode === 'latest'
             ? b.queryTime - a.queryTime
             : a.proficiency - b.proficiency || a.queryTime - b.queryTime)
-          .slice(0, 200);
+          .slice(0, 50);
       } else {
         const list = Object.values(data.english || {});
         if (list.length === 0) throw new Error("目前沒有英文學習紀錄，無法進行測驗。");

@@ -1,6 +1,15 @@
 import { generateQuizWithLLM, generateCustomQuizWithLLM } from "../services/llmService.js";
 import { detectProviderFromApiKey } from "../config/providers.js";
 
+function shuffle(items) {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
+  }
+  return result;
+}
+
 /**
  * POST /api/quiz/generate
  * Body: { idioms?: string[], targets?: string[], history?: object[], selectionMode?: string, description?: string, type?: string, level: string, apiKey?, provider?, model?, baseURL? }
@@ -25,7 +34,7 @@ export async function postGenerateQuiz(req, res) {
     const normalizedHistory = hasHistory
       ? history
           .filter((item) => item && typeof item.idiom === "string" && item.idiom.trim())
-          .slice(0, 200)
+          .slice(0, 50)
           .map((item) => ({
             idiom: item.idiom.trim(),
             queryTime: Number(item.queryTime) || 0,
@@ -79,7 +88,8 @@ export async function postGenerateQuiz(req, res) {
       return;
     }
 
-    const limitedTargets = normalizedHistory?.map((item) => item.idiom) || targetList.slice(0, 10);
+    const shuffledHistory = normalizedHistory ? shuffle(normalizedHistory) : undefined;
+    const limitedTargets = shuffledHistory?.map((item) => item.idiom) || targetList.slice(0, 10);
     const validSelectionMode = selectionMode === "weakest" ? "weakest" : "latest";
     
     const { questions, debug } = await generateQuizWithLLM(
@@ -88,7 +98,7 @@ export async function postGenerateQuiz(req, res) {
       options,
       quizType,
       validQuestionCount,
-      normalizedHistory,
+      shuffledHistory,
       validSelectionMode
     );
     res.json({ questions, debug });
