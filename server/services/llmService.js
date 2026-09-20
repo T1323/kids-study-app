@@ -14,10 +14,14 @@ const LEVEL_DESC = {
  */
 function getClientAndModel(options = {}) {
   const { apiKey, providerId, model: overrideModel, baseURL: overrideBaseURL } = options;
-  const trimmedKey = typeof apiKey === "string" ? apiKey.trim() : "";
+  const trimmedKey = typeof apiKey === "string" && apiKey.trim()
+    ? apiKey.trim()
+    : (process.env.LLM_API_KEY || "").trim();
 
   if (!trimmedKey) {
-    throw new Error("請提供 API Key (API Key is required)");
+    const error = new Error("請先設定 API Key，或在 Vercel Production 設定 LLM_API_KEY");
+    error.status = 400;
+    throw error;
   }
 
   if (providerId || (overrideBaseURL && overrideModel)) {

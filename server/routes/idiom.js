@@ -59,6 +59,7 @@ export async function postExplain(req, res) {
   } catch (err) {
     console.error("[POST /api/idiom/explain]", err);
     const message = err.message || "成語說明生成失敗，請稍後再試。";
-    res.status(500).json({ error: message });
+    const status = Number(err.status || err.response?.status);
+    res.status(status === 400 ? 400 : 500).json({ error: message });
   }
 }
