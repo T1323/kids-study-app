@@ -106,6 +106,8 @@ export async function postGenerateQuiz(req, res) {
   } catch (err) {
     console.error("[POST /api/quiz/generate]", err);
     const message = err.message || "測驗生成失敗，請稍後再試。";
-    res.status(500).json({ error: message });
+    const status = Number(err.status || err.response?.status);
+    const responseStatus = [429, 500, 502, 503, 504].includes(status) ? status : 500;
+    res.status(responseStatus).json({ error: message });
   }
 }

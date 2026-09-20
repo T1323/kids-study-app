@@ -49,9 +49,15 @@ export async function generateQuiz(req: GenerateQuizRequest): Promise<QuizQuesti
   });
 
   if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
+    const responseText = await res.text().catch(() => "");
+    let errorBody: { error?: string } = {};
+    try {
+      errorBody = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      // Some platform errors return an empty or non-JSON response body.
+    }
     throw new Error(
-      (errorBody as { error?: string })?.error || `測驗生成失敗（${res.status}）`
+      errorBody.error || `測驗生成失敗（${res.status}），服務暫時無法回應，請稍後再試。`
     );
   }
 

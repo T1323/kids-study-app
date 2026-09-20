@@ -43,6 +43,24 @@ function getClientAndModel(options = {}) {
   };
 }
 
+async function createQuizCompletion(client, request) {
+  const retryableStatuses = new Set([429, 500, 502, 503, 504]);
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await client.chat.completions.create(request);
+    } catch (error) {
+      const status = Number(error?.status || error?.response?.status);
+      if (!retryableStatuses.has(status) || attempt === maxAttempts) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+    }
+  }
+}
+
 /**
  * 組出給 LLM 的 prompt，要求回傳固定格式的 JSON。
  */
@@ -275,7 +293,7 @@ export async function generateQuizWithLLM(
     prompt = buildQuizPrompt(targets, level, type, questionCount, history);
   }
 
-  const response = await client.chat.completions.create({
+  const response = await createQuizCompletion(client, {
     model,
     messages: [
       {
