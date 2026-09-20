@@ -10,6 +10,7 @@ export function getProviders(req, res) {
     id,
     name: p.name,
     getKeyUrl: p.getKeyUrl || null,
+    defaultModel: p.model || null,
   }));
   res.json(list);
 }

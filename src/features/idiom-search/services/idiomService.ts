@@ -12,6 +12,7 @@ export interface ProviderOption {
   id: string;
   name: string;
   getKeyUrl: string | null;
+  defaultModel?: string | null;
 }
 
 /**

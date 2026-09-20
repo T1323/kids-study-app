@@ -56,8 +56,6 @@ export function ModelSettings({ value = {
       fetchDetectProvider(savedKey).then(({ provider }) => {
         if (!cancelled && provider) {
           onChange({ ...value, apiKey: savedKey, providerId: provider });
-          // Fetch models for saved key automatically
-          handleFetchModels(savedKey, provider);
         }
       });
     }
@@ -70,6 +68,35 @@ export function ModelSettings({ value = {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
+
+  useEffect(() => {
+    if (!value.apiKey.trim() || !value.providerId) return;
+
+    let cancelled = false;
+    setIsLoadingModels(true);
+    setErrorMsg("");
+    fetchAvailableModels(
+      value.apiKey.trim(),
+      value.providerId,
+      value.providerId === "custom" ? value.customBaseURL : undefined
+    )
+      .then((models) => {
+        if (!cancelled) setAvailableModels(models);
+      })
+      .catch((err: any) => {
+        if (!cancelled) {
+          setErrorMsg(err.message || "無法載入模型清單");
+          setAvailableModels([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingModels(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [value.apiKey, value.providerId, value.customBaseURL]);
 
   const handleProviderChange = (providerId: string) => {
     onChange({ ...value, providerId });
@@ -174,6 +201,13 @@ export function ModelSettings({ value = {
 
   const currentProvider = list.find((p) => p.id === value.providerId);
   const isCustom = value.providerId === "custom";
+  const modelOptions = Array.from(new Set([
+    ...availableModels,
+    ...(value.customModel ? [value.customModel] : []),
+    ...(availableModels.length === 0 && currentProvider?.defaultModel
+      ? [currentProvider.defaultModel]
+      : []),
+  ]));
 
   if (loading) {
     return (
@@ -198,6 +232,26 @@ export function ModelSettings({ value = {
             </a>
           </span>
         )}
+      </div>
+
+      <div className="model-settings-row">
+        <label className="model-settings-label" htmlFor="model-provider">
+          AI 服務 / 模型
+        </label>
+        <select
+          id="model-provider"
+          className="model-settings-select"
+          value={value.providerId}
+          onChange={(e) => handleProviderChange(e.target.value)}
+          disabled={disabled}
+        >
+          {list.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name}
+            </option>
+          ))}
+          <option value="custom">自訂 (Custom)</option>
+        </select>
       </div>
 
       <div className="model-settings-row">
@@ -244,7 +298,7 @@ export function ModelSettings({ value = {
         </div>
       )}
 
-      {availableModels.length > 0 && (
+      {modelOptions.length > 0 && (
         <div className="model-settings-row" style={{ marginTop: "12px" }}>
           <label className="model-settings-label" htmlFor="model-select">
             選擇可用模型
@@ -257,7 +311,7 @@ export function ModelSettings({ value = {
             disabled={disabled}
           >
             <option value="">-- 使用服務預設模型 --</option>
-            {availableModels.map((m) => (
+            {modelOptions.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>

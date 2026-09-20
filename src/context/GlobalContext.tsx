@@ -134,8 +134,14 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
                if (remoteSettings.quizQuestionCount) {
                  setQuizQuestionCount(remoteSettings.quizQuestionCount);
                }
-               if (remoteSettings.modelSettings)
-                 setModelSettings(remoteSettings.modelSettings);
+               if (remoteSettings.modelSettings) {
+                 setModelSettings({
+                   providerId: remoteSettings.modelSettings.providerId || "google",
+                   apiKey: remoteSettings.modelSettings.apiKey || "",
+                   customBaseURL: remoteSettings.modelSettings.customBaseURL || "",
+                   customModel: remoteSettings.modelSettings.customModel || "",
+                 });
+               }
              }
            }
         }
