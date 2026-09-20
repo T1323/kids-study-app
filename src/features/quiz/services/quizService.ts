@@ -2,11 +2,11 @@ import { QuizQuestion, MatchingPair } from "../types";
 import type { IdiomProgress } from "../../sync/services/googleDrive";
 
 const API_BASE =
-  typeof import.meta.env.VITE_API_BASE_URL === "string" &&
-  import.meta.env.VITE_API_BASE_URL.trim() !== ""
-    ? import.meta.env.VITE_API_BASE_URL.trim().replace(/\/$/, "")
-    : import.meta.env.PROD
+  import.meta.env.PROD
     ? ""
+    : typeof import.meta.env.VITE_API_BASE_URL === "string" &&
+      import.meta.env.VITE_API_BASE_URL.trim() !== ""
+    ? import.meta.env.VITE_API_BASE_URL.trim().replace(/\/$/, "")
     : "http://localhost:3000";
 
 interface GenerateQuizRequest {
