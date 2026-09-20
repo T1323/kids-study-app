@@ -252,6 +252,34 @@ body {
   box-shadow: 0 0 0 1px rgba(99, 91, 255, 0.4);
 }
 
+.voice-btn {
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: white;
+  color: var(--primary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease-out, color 0.15s ease-out,
+    border-color 0.15s ease-out;
+}
+
+.voice-btn:hover,
+.voice-btn.listening {
+  background: #fff0f0;
+  border-color: #e57373;
+  color: #d32f2f;
+}
+
+.voice-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .primary-btn {
   border-radius: 999px;
   border: none;
