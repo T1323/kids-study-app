@@ -96,6 +96,8 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
   const { client, model } = getClientAndModel(options);
   const prompt = buildPrompt(idiom, level);
 
+  console.log(`[LLM Idiom] model=${model} promptChars=${prompt.length} level=${level}`);
+
   const response = await client.chat.completions.create({
     model,
     messages: [
