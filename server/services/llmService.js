@@ -27,7 +27,10 @@ function getClientAndModel(options = {}) {
   if (providerId || (overrideBaseURL && overrideModel)) {
     const provider = providerId && PROVIDERS[providerId];
     const baseURL = overrideBaseURL || (provider?.baseURL ?? "");
-    const model = overrideModel || provider?.model || process.env.LLM_MODEL || "gpt-4o-mini";
+    const rawModel = overrideModel || provider?.model || process.env.LLM_MODEL || "gpt-4o-mini";
+    const model = providerId === "google" || baseURL.includes("generativelanguage.googleapis.com")
+      ? rawModel.replace(/^models\//, "")
+      : rawModel;
     if (baseURL && model) {
       const client = new OpenAI({
         apiKey: trimmedKey,
