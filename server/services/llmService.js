@@ -135,23 +135,26 @@ export async function explainIdiomWithLLM(idiom, level, options = {}) {
 /**
  * 建立測驗的 Prompt (支援成語與英文)
  */
-function buildHistoryInstruction(history, questionCount) {
+function buildHistoryInstruction(history, questionCount, allowRepeatedTargets = false) {
   if (!Array.isArray(history) || history.length === 0) return "";
   const idiomPool = history.map((item) => item.idiom);
+
+  const targetRule = allowRepeatedTargets
+    ? `每題的 target 必須是該題正確答案選項中使用的成語，且必須完全等於題庫中的成語；不同題可以重複使用 target。`
+    : `請從這份題庫中以等機率、無偏好的方式隨機選出 ${questionCount} 個不同成語出題。每一題的 target 必須完全等於上述題庫中的成語，不得自行新增或修改成語。`;
 
   return `
 以下是網站依條件挑出的成語題庫（最多 50 筆）：
 ${JSON.stringify(idiomPool)}
 
-請從這份題庫中以等機率、無偏好的方式隨機選出 ${questionCount} 個不同成語出題。
-每一題的 target 必須完全等於上述題庫中的成語，不得自行新增或修改成語。
+${targetRule}
 `;
 }
 
 function buildQuizPrompt(targets, level, type = 'idiom', questionCount = 10, history) {
   const levelDesc = LEVEL_DESC[level] || `自訂程度：${level}。請根據此程度要求調整內容風格與難易度。`;
   const targetsStr = targets.join("、");
-  const historyInstruction = buildHistoryInstruction(history, questionCount);
+  const historyInstruction = buildHistoryInstruction(history, questionCount, true);
   
   if (type === 'english') {
     return `你是一位英文測驗出題老師，專門為不同程度的學習者設計英文單字測驗。
@@ -195,25 +198,27 @@ ${historyInstruction || `請針對以下成語列表：「${targetsStr}」，`}�
 [
   {
     "id": "1",
-    "target": "一石二鳥", // 該題考的目標成語
-    "type": "meaning", // 題目類型：meaning (意指), usage (用法), fill_in (填空), synonym (同義詞/反義詞)
+    "target": "一石二鳥", // 正確答案選項中使用的成語
+    "type": "usage_correct", // usage_correct 或 usage_incorrect
     "question": "題目敘述",
-    "options": ["選項A", "選項B", "選項C", "選項D"],
-    "answer": "正確選項內容 (必須完全符合 options 中的某一項)",
-    "explanation": "解析 (包含成語解釋與為何選此答案，請詳細說明選項差異，嚴禁出現英文)"
+    "options": ["包含成語的短句A", "包含成語的短句B", "包含成語的短句C", "包含成語的短句D"],
+    "answer": "正確選項短句 (必須完全符合 options 中的某一項)",
+    "explanation": "逐一說明四個選項的成語用法，並解釋答案，嚴禁出現英文"
   },
   ...
 ]
 
 出題規則：
-1. 題目類型請自由混合 meaning (成語解釋), usage (情境應用), fill_in (成語填空), synonym (同義/反義詞)。
-2. 請從列表中選擇適合的成語出題，總共 ${questionCount} 題。若列表長度大於 ${questionCount}，請挑選其中 ${questionCount} 個成語出題即可，不需全部使用。
-3. 選項必須有 4 個，而且四個選項都必須從上述 50 個成語題庫中選出；請選擇意思相近、字形相似或情境容易混淆的成語，嚴禁使用題庫以外的成語。
-4. 內容與用語難易度需符合「${levelDesc}」。
-5. 若成語數量不足 ${questionCount} 個，請針對重點成語多出幾題不同類型的題目，總數需為 ${questionCount} 題。
-6. 請務必隨機打亂題目順序，不要讓同一個目標成語的題目連續出現。確保題目的分佈是隨機的。
-7. 嚴格禁止在題目敘述(question)、選項(options)或解析(explanation)中出現英文翻譯或英文說明。
-8. **絕對禁止**包含任何 "(English: ...)", "(Literal meaning: ...)" 或類似的英文解釋。請完全使用繁體中文。
+1. 題目只能使用以下兩種類型，兩類題數盡量平均，並交錯排列：
+  - "usage_correct"：題幹固定為「以下何選項的成語使用為正確？」四個選項各是一句使用不同成語的短句，且只有一個選項的成語使用正確。
+  - "usage_incorrect"：題幹固定為「以下何選項的成語使用有誤？」四個選項各是一句使用不同成語的短句，且只有一個選項的成語使用有誤，其餘三個用法皆正確。
+2. 每題四個選項都必須是完整、自然、適合「${levelDesc}」程度的繁體中文短句；每句恰好使用一個成語，而且四句使用的成語彼此不同。
+3. 每個選項中使用的成語都必須取自上述給定成語題庫，不得使用題庫外成語。不得以只解釋成語、填空或單獨列出成語作為選項。
+4. 正確用法須符合成語本義、慣用搭配及情境；錯誤用法須在語意或使用情境上明確不合，不可只靠錯字、語病或冷僻知識判斷。各選項的正誤須清楚且唯一，不可有爭議。
+5. "answer" 必須逐字等於唯一符合題幹要求的選項短句。"target" 必須是該答案短句中使用的成語。
+6. "explanation" 必須逐一說明四句中成語的意思及使用正誤，並指出為何答案符合題幹。
+7. 總題數必須恰好為 ${questionCount} 題；兩種 type 都必須出現，題數差距不得超過一題。
+8. 嚴格禁止在題目、選項或解析中出現英文翻譯或英文說明，全部使用繁體中文（臺灣用語）。
 `;
 }
 
@@ -320,7 +325,38 @@ export async function generateQuizWithLLM(
     let finalResult = slicedResult;
 
     // Matching type doesn't need the legacy target check
-    if (type !== 'idiom-matching') {
+    if (type === 'idiom') {
+      const idiomPool = allowedTargets || new Set(targets);
+      const optionIdiom = (option) => {
+        if (typeof option !== "string") return null;
+        const matches = [...idiomPool].filter((idiom) => option.includes(idiom));
+        return matches.length === 1 ? matches[0] : null;
+      };
+
+      finalResult = slicedResult.filter((question) => {
+        if (!question || typeof question !== "object") return false;
+        const expectedQuestion = question.type === "usage_correct"
+          ? "以下何選項的成語使用為正確？"
+          : question.type === "usage_incorrect"
+            ? "以下何選項的成語使用有誤？"
+            : null;
+        if (!expectedQuestion || question.question?.trim() !== expectedQuestion) return false;
+        if (!Array.isArray(question.options) || question.options.length !== 4) return false;
+        if (typeof question.answer !== "string" || !question.options.includes(question.answer)) return false;
+
+        const idiomsInOptions = question.options.map(optionIdiom);
+        if (idiomsInOptions.some((idiom) => !idiom) || new Set(idiomsInOptions).size !== 4) return false;
+        const answerIndex = question.options.indexOf(question.answer);
+        return question.target === idiomsInOptions[answerIndex];
+      });
+
+      const correctCount = finalResult.filter((question) => question.type === "usage_correct").length;
+      const incorrectCount = finalResult.length - correctCount;
+      const typesAlternate = finalResult.every((question, index) => index === 0 || question.type !== finalResult[index - 1].type);
+      if (finalResult.length !== questionCount || correctCount === 0 || incorrectCount === 0 || Math.abs(correctCount - incorrectCount) > 1 || !typesAlternate) {
+        throw new Error("模型未能依指定格式產生完整的成語用法測驗，請重試");
+      }
+    } else if (type !== 'idiom-matching') {
        // Ensure each question has a target field if missing (heuristic match)
        finalResult = slicedResult
          .filter((q) => q && typeof q === "object")

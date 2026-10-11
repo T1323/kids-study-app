@@ -66,47 +66,57 @@ export const QuizView: React.FC<Props> = ({
     const newData = { ...data };
     const now = Date.now();
 
-    rs.forEach(r => {
-      // Find the question to get the target idiom
-      let target = '';
+    const getTarget = (result: QuizResult) => {
       if (gameType === 'multiple-choice') {
-          const q = questions.find(q => q.id === r.questionId);
-          if (q) target = q.target;
-      } else {
-          // For matching, the questionId is the pairId, and we need to find the idiom
-          const p = matchingPairs.find(p => p.id === r.questionId);
-          if (p) target = p.idiom;
+        return questions.find(question => question.id === result.questionId)?.target || '';
       }
-      
-      if (!target) return;
-      
-      if (quizMode === 'idiom') {
-        if (newData.idioms && newData.idioms[target]) {
-          const currentProficiency = newData.idioms[target].proficiency || 0;
-          let change = r.isCorrect ? 20 : -10;
-          let newProficiency = Math.max(0, Math.min(100, currentProficiency + change));
+      return matchingPairs.find(pair => pair.id === result.questionId)?.idiom || '';
+    };
 
-          newData.idioms[target] = {
-            ...newData.idioms[target],
-            proficiency: newProficiency,
-            lastTestTime: now,
-          };
-        }
-      } else if (quizMode === 'english') {
-        if (!newData.english) newData.english = {};
-        if (newData.english[target]) {
-           const currentProficiency = newData.english[target].proficiency || 0;
-           let change = r.isCorrect ? 20 : -10;
-           let newProficiency = Math.max(0, Math.min(100, currentProficiency + change));
+    if (quizMode === 'idiom') {
+      const outcomes = new Map<string, { correct: number; total: number }>();
 
-           newData.english[target] = {
-             ...newData.english[target],
-             proficiency: newProficiency,
-             lastTestTime: now,
-           };
-        }
-      }
-    });
+      rs.forEach(result => {
+        const target = getTarget(result);
+        if (!target || !newData.idioms?.[target]) return;
+
+        const outcome = outcomes.get(target) || { correct: 0, total: 0 };
+        outcome.total += 1;
+        if (result.isCorrect) outcome.correct += 1;
+        outcomes.set(target, outcome);
+      });
+
+      outcomes.forEach(({ correct, total }, target) => {
+        const progress = newData.idioms![target];
+        const currentProficiency = Math.max(0, Math.min(100, Number(progress.proficiency) || 0));
+        const accuracy = correct / total;
+        const guessRate = gameType === 'multiple-choice' ? 0.25 : 0;
+        const estimatedMastery = Math.max(0, Math.min(100, ((accuracy - guessRate) / (1 - guessRate)) * 100));
+        const evidenceWeight = total / (total + 4);
+        const newProficiency = Math.round(currentProficiency + (estimatedMastery - currentProficiency) * evidenceWeight);
+
+        newData.idioms![target] = {
+          ...progress,
+          proficiency: newProficiency,
+          lastTestTime: now,
+        };
+      });
+    } else if (quizMode === 'english') {
+      rs.forEach(result => {
+        const target = getTarget(result);
+        if (!target || !newData.english?.[target]) return;
+
+        const currentProficiency = newData.english[target].proficiency || 0;
+        const change = result.isCorrect ? 20 : -10;
+        const newProficiency = Math.max(0, Math.min(100, currentProficiency + change));
+
+        newData.english[target] = {
+          ...newData.english[target],
+          proficiency: newProficiency,
+          lastTestTime: now,
+        };
+      });
+    }
 
     newData.lastSynced = now;
     onUpdateData(newData);

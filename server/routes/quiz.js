@@ -88,6 +88,15 @@ export async function postGenerateQuiz(req, res) {
       return;
     }
 
+    if (quizType === 'idiom') {
+      const availableIdioms = normalizedHistory?.map((item) => item.idiom) || targetList;
+      const distinctIdioms = new Set(availableIdioms.filter((idiom) => typeof idiom === 'string').map((idiom) => idiom.trim()).filter(Boolean));
+      if (distinctIdioms.size < 4) {
+        res.status(400).json({ error: "成語選擇題至少需要 4 個不同的成語學習紀錄。" });
+        return;
+      }
+    }
+
     const shuffledHistory = normalizedHistory ? shuffle(normalizedHistory) : undefined;
     const limitedTargets = shuffledHistory?.map((item) => item.idiom) || targetList.slice(0, 10);
     const validSelectionMode = selectionMode === "weakest" ? "weakest" : "latest";
