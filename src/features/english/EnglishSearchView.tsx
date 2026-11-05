@@ -11,7 +11,9 @@ import {
     readFile,
     createFile,
     updateFile,
-    ENGLISH_PROGRESS_FILE_NAME
+    ENGLISH_PROGRESS_FILE_NAME,
+    loadQueryRecord,
+    saveQueryRecord,
 } from "../sync/services/googleDrive";
 import { QuizView } from "../quiz/QuizView";
 import { CustomChallengeSetup } from "./components/CustomChallengeSetup";
@@ -28,6 +30,7 @@ const DEFAULT_PROGRESS: UserProgressData = {
 export const EnglishSearchView = () => {
   const { accessToken, modelSettings, level, appFolderId } = useGlobalContext();
   const [result, setResult] = useState<EnglishWordExplain | null>(null);
+  const [activeQuery, setActiveQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgressData>(DEFAULT_PROGRESS);
@@ -66,20 +69,41 @@ export const EnglishSearchView = () => {
   }, [accessToken, appFolderId]);
 
 
-  const handleSearch = async (word: string) => {
+  const handleSearch = async (word: string, forceRefresh = false) => {
     setLoading(true);
     setError(null);
-    setResult(null);
+    if (!forceRefresh) setResult(null);
+    setActiveQuery(word);
 
     try {
-      const data = await fetchEnglishExplain({
-        word,
-        level,
-        apiKey: modelSettings.apiKey,
-        provider: modelSettings.providerId,
-        model: modelSettings.customModel,
-        baseURL: modelSettings.customBaseURL,
-      });
+      let data: EnglishWordExplain | null = null;
+      if (!forceRefresh && accessToken && appFolderId) {
+        try {
+          data = await loadQueryRecord<EnglishWordExplain>(accessToken, appFolderId, "english", word, level);
+        } catch (driveError) {
+          console.error("Failed to load English query record:", driveError);
+        }
+      }
+
+      if (!data) {
+        data = await fetchEnglishExplain({
+          word,
+          level,
+          apiKey: modelSettings.apiKey,
+          provider: modelSettings.providerId,
+          model: modelSettings.customModel,
+          baseURL: modelSettings.customBaseURL,
+        });
+        if (accessToken && appFolderId) {
+          try {
+            await saveQueryRecord(accessToken, appFolderId, "english", word, level, data);
+          } catch (driveError) {
+            console.error("Failed to save English query record:", driveError);
+            setError("查詢成功，但雲端查詢紀錄儲存失敗。請確認 Google Drive 權限後再試。");
+          }
+        }
+      }
+
       setResult(data);
 
       // Save to history/progress
@@ -240,7 +264,13 @@ export const EnglishSearchView = () => {
 
             {error && <div className="error-message">{error}</div>}
 
-            {result && <EnglishResultCard data={result} />}
+            {result && (
+              <EnglishResultCard
+                data={result}
+                onRequery={() => handleSearch(activeQuery, true)}
+                requerying={loading}
+              />
+            )}
             
             <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
               {!progressLoaded && accessToken ? (

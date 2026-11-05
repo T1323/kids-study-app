@@ -2,9 +2,11 @@ import { IdiomExplain } from "../types";
 
 interface Props {
   result: IdiomExplain;
+  onRequery?: () => void;
+  requerying?: boolean;
 }
 
-export const IdiomResultCard = ({ result }: Props) => {
+export const IdiomResultCard = ({ result, onRequery, requerying = false }: Props) => {
   return (
     <article className="idiom-card">
       <header className="idiom-card-header">
@@ -31,6 +33,14 @@ export const IdiomResultCard = ({ result }: Props) => {
           <span className="idiom-zhuyin">{result.zhuyin}</span>
         )}
       </header>
+
+      {onRequery && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+          <button type="button" className="primary-btn" onClick={onRequery} disabled={requerying}>
+            {requerying ? "查詢中..." : "重新查詢"}
+          </button>
+        </div>
+      )}
 
       <section className="idiom-section">
         <h4>解釋</h4>

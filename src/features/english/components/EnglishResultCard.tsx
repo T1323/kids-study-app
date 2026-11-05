@@ -3,9 +3,11 @@ import { EnglishWordExplain } from "../types";
 
 interface Props {
   data: EnglishWordExplain;
+  onRequery?: () => void;
+  requerying?: boolean;
 }
 
-export const EnglishResultCard = ({ data }: Props) => {
+export const EnglishResultCard = ({ data, onRequery, requerying = false }: Props) => {
   const handleSpeak = () => {
     if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(data.word);
@@ -42,6 +44,14 @@ export const EnglishResultCard = ({ data }: Props) => {
         {data.kk_phonetic && <span className="phonetic">{data.kk_phonetic}</span>}
         {data.part_of_speech && <span className="pos-tag">{data.part_of_speech}</span>}
       </div>
+
+      {onRequery && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <button type="button" className="primary-btn" onClick={onRequery} disabled={requerying}>
+            {requerying ? "查詢中..." : "重新查詢"}
+          </button>
+        </div>
+      )}
 
       <div className="result-section">
         <h3>📖 中文意思</h3>
