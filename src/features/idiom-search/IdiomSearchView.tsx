@@ -11,6 +11,8 @@ import {
   createFile,
   updateFile,
   PROGRESS_FILE_NAME,
+  loadQueryRecord,
+  saveQueryRecord,
 } from "../sync/services/googleDrive";
 import { QuizView } from "../quiz/QuizView";
 
@@ -25,6 +27,7 @@ export const IdiomSearchView = () => {
   const { accessToken, modelSettings, level, settingsLoaded, appFolderId } = useGlobalContext();
   const [activeTab, setActiveTab] = useState<'search' | 'quiz'>('search');
   const [idiomInput, setIdiomInput] = useState("");
+  const [activeQuery, setActiveQuery] = useState("");
 
   const [result, setResult] = useState<IdiomExplain | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,10 +61,11 @@ export const IdiomSearchView = () => {
     loadData();
   }, [accessToken, appFolderId]);
 
-  const handleSearch = async (idiom: string) => {
+  const handleSearch = async (idiom: string, forceRefresh = false) => {
     setLoading(true);
     setError(null);
-    setResult(null);
+    if (!forceRefresh) setResult(null);
+    setActiveQuery(idiom);
 
     try {
       const req: IdiomExplainRequest = {
@@ -73,7 +77,27 @@ export const IdiomSearchView = () => {
         baseURL: modelSettings.customBaseURL,
       };
 
-      const data = await fetchIdiomExplainOrMock(req);
+      let data: IdiomExplain | null = null;
+      if (!forceRefresh && accessToken && appFolderId) {
+        try {
+          data = await loadQueryRecord<IdiomExplain>(accessToken, appFolderId, "idioms", idiom, level);
+        } catch (driveError) {
+          console.error("Failed to load idiom query record:", driveError);
+        }
+      }
+
+      if (!data) {
+        data = await fetchIdiomExplainOrMock(req);
+        if (accessToken && appFolderId) {
+          try {
+            await saveQueryRecord(accessToken, appFolderId, "idioms", idiom, level, data);
+          } catch (driveError) {
+            console.error("Failed to save idiom query record:", driveError);
+            setError("查詢成功，但雲端查詢紀錄儲存失敗。請確認 Google Drive 權限後再試。");
+          }
+        }
+      }
+
       setResult(data);
 
       // Update Local Progress
@@ -181,7 +205,13 @@ export const IdiomSearchView = () => {
 
             {error && <div className="error-msg">{error}</div>}
 
-            {result && <IdiomResultCard result={result} />}
+            {result && (
+              <IdiomResultCard
+                result={result}
+                onRequery={() => handleSearch(activeQuery, true)}
+                requerying={loading}
+              />
+            )}
 
             <div className="history-section">
               {!settingsLoaded && accessToken ? (

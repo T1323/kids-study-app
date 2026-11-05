@@ -4,6 +4,16 @@ export const ENGLISH_PROGRESS_FILE_NAME = "kids-study-app-english-progress.json"
 export const WRITING_SESSIONS_FILE_NAME = "kids-study-app-writing-sessions.json";
 export const WRITING_PROGRESS_FILE_NAME = "kids-study-app-writing-progress.json";
 export const FOLDER_NAME = "kids-study-app";
+export const QUERY_RECORDS_FOLDER_NAME = "query-records";
+
+export type QueryRecordCategory = "idioms" | "english";
+
+interface QueryRecord<T> {
+  query: string;
+  level: string;
+  result: T;
+  updatedAt: number;
+}
 
 // Keep for backward compatibility during refactor, but better to use specific constants
 export const FILE_NAME = SETTINGS_FILE_NAME;
@@ -70,8 +80,10 @@ export interface UserProgressData {
 
 // Folder Management
 
-export const searchFolder = async (accessToken: string, folderName: string): Promise<string | null> => {
-  const query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+export const searchFolder = async (accessToken: string, folderName: string, parentId?: string): Promise<string | null> => {
+  const escapedName = folderName.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  let query = `name = '${escapedName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  if (parentId) query += ` and '${parentId}' in parents`;
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id)`;
 
   try {
@@ -91,10 +103,11 @@ export const searchFolder = async (accessToken: string, folderName: string): Pro
   }
 };
 
-export const createFolder = async (accessToken: string, folderName: string): Promise<string | null> => {
+export const createFolder = async (accessToken: string, folderName: string, parentId?: string): Promise<string | null> => {
   const metadata = {
     name: folderName,
     mimeType: "application/vnd.google-apps.folder",
+    ...(parentId ? { parents: [parentId] } : {}),
   };
 
   const url = "https://www.googleapis.com/drive/v3/files";
@@ -122,6 +135,90 @@ export const ensureAppFolder = async (accessToken: string): Promise<string | nul
     folderId = await createFolder(accessToken, FOLDER_NAME);
   }
   return folderId;
+};
+
+const ensureChildFolder = async (
+  accessToken: string,
+  folderName: string,
+  parentId: string
+): Promise<string | null> => {
+  let folderId = await searchFolder(accessToken, folderName, parentId);
+  if (!folderId) folderId = await createFolder(accessToken, folderName, parentId);
+  return folderId;
+};
+
+const getQueryRecordFileName = async (query: string, level: string): Promise<string> => {
+  const normalizedKey = `${level}:${query.trim().toLowerCase()}`;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizedKey));
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${level}-${hash}.json`;
+};
+
+const getQueryRecordFolder = async (
+  accessToken: string,
+  appFolderId: string,
+  category: QueryRecordCategory
+): Promise<string | null> => {
+  const rootFolderId = await ensureChildFolder(accessToken, QUERY_RECORDS_FOLDER_NAME, appFolderId);
+  if (!rootFolderId) return null;
+  return ensureChildFolder(accessToken, category, rootFolderId);
+};
+
+export const loadQueryRecord = async <T>(
+  accessToken: string,
+  appFolderId: string,
+  category: QueryRecordCategory,
+  query: string,
+  level: string
+): Promise<T | null> => {
+  const folderId = await getQueryRecordFolder(accessToken, appFolderId, category);
+  if (!folderId) return null;
+
+  const filename = await getQueryRecordFileName(query, level);
+  const fileId = await searchFile(accessToken, filename, folderId);
+  if (!fileId) return null;
+
+  const record = await readFile<QueryRecord<T>>(accessToken, fileId);
+  return record?.result ?? null;
+};
+
+export const saveQueryRecord = async <T>(
+  accessToken: string,
+  appFolderId: string,
+  category: QueryRecordCategory,
+  query: string,
+  level: string,
+  result: T
+): Promise<void> => {
+  const folderId = await getQueryRecordFolder(accessToken, appFolderId, category);
+  if (!folderId) throw new Error("無法建立雲端查詢紀錄資料夾");
+
+  const filename = await getQueryRecordFileName(query, level);
+  const record: QueryRecord<T> = {
+    query: query.trim(),
+    level,
+    result,
+    updatedAt: Date.now(),
+  };
+  const existingFileId = await searchFile(accessToken, filename, folderId);
+  if (existingFileId) {
+    const response = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(record),
+      }
+    );
+    if (!response.ok) throw new Error(`更新雲端查詢紀錄失敗：${response.status}`);
+    return;
+  }
+
+  const createdFileId = await createFile(accessToken, filename, record, folderId);
+  if (!createdFileId) throw new Error("建立雲端查詢紀錄失敗");
 };
 
 // File Management

@@ -6,6 +6,11 @@
   "engines": {
     "node": "24.x"
   },
+  "allowScripts": {
+    "@swc/core@1.15.11": true,
+    "esbuild@0.25.12": true,
+    "fsevents@2.3.3": true
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
