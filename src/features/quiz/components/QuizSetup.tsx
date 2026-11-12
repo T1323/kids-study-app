@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGlobalContext } from '../../../context/GlobalContext';
 import { UserProgressData } from '../../sync/services/googleDrive';
 import type { IdiomProgress } from '../../sync/services/googleDrive';
@@ -31,16 +31,75 @@ export const QuizSetup: React.FC<Props> = ({
 }) => {
   const { quizQuestionCount: questionCount } = useGlobalContext();
   const [gameType, setGameType] = useState<'multiple-choice' | 'matching'>('multiple-choice');
+  const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
+  const [selectionMode, setSelectionMode] = useState<'latest' | 'weakest' | 'custom' | null>(null);
+  const lastSelectedIndex = useRef<number | null>(null);
+  const shiftKeyPressed = useRef(false);
+  const minItemsForMatching = 5;
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') shiftKeyPressed.current = true;
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') shiftKeyPressed.current = false;
+    };
+    const handleWindowBlur = () => {
+      shiftKeyPressed.current = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
+
+  const selectableItems = (quizMode === 'idiom'
+    ? Object.values(data.idioms || {}).map(item => ({ target: item.idiom, queryTime: item.queryTime }))
+    : Object.values(data.english || {}).map(item => ({ target: item.word, queryTime: item.queryTime }))
+  )
+    .filter(item => item.target.trim())
+    .sort((a, b) => b.queryTime - a.queryTime);
+  const selectableTargetSet = new Set(selectableItems.map(item => item.target));
+  const selectedTargetSet = new Set(selectedTargets.filter(target => selectableTargetSet.has(target)));
+  const minCustomSelectionCount = quizMode === 'idiom'
+    ? gameType === 'matching' ? minItemsForMatching : 4
+    : 1;
 
   // Calculate available items count
-  const availableCount = quizMode === 'idiom' 
-    ? Object.values(data.idioms || {}).length 
-    : Object.values(data.english || {}).length;
+  const availableCount = selectableItems.length;
 
-  const minItemsForMatching = 5;
   const canPlayMatching = availableCount >= minItemsForMatching;
 
-  const handleStart = async (mode: 'latest' | 'weakest') => {
+  const handleItemSelection = (target: string, index: number, event: React.MouseEvent<HTMLInputElement>) => {
+    const shouldSelect = !selectedTargetSet.has(target);
+    const isRangeSelection = event.shiftKey || shiftKeyPressed.current;
+
+    setSelectedTargets(current => {
+      const selected = new Set(current);
+      if (isRangeSelection && lastSelectedIndex.current !== null) {
+        const start = Math.min(lastSelectedIndex.current, index);
+        const end = Math.max(lastSelectedIndex.current, index);
+        selectableItems.slice(start, end + 1).forEach(item => {
+          if (shouldSelect) selected.add(item.target);
+          else selected.delete(item.target);
+        });
+      } else if (shouldSelect) {
+        selected.add(target);
+      } else {
+        selected.delete(target);
+      }
+      return [...selected];
+    });
+    if (!isRangeSelection) lastSelectedIndex.current = index;
+    setError(null);
+  };
+
+  const handleStart = async (mode: 'latest' | 'weakest' | 'custom') => {
     setLoading(true);
     setError(null);
     try {
@@ -50,16 +109,30 @@ export const QuizSetup: React.FC<Props> = ({
       if (quizMode === 'idiom') {
         const list = Object.values(data.idioms || {});
         if (list.length === 0) throw new Error("目前沒有成語學習紀錄，無法進行測驗。");
-        // Send up to 50 relevant records so the AI can select quiz items from this pool.
-        idiomHistory = [...list]
-          .sort((a, b) => mode === 'latest'
-            ? b.queryTime - a.queryTime
-            : a.proficiency - b.proficiency || a.queryTime - b.queryTime)
-          .slice(0, 50);
+        if (mode === 'custom') {
+          idiomHistory = list.filter(item => selectedTargetSet.has(item.idiom));
+          if (idiomHistory.length === 0) throw new Error("請至少選擇一個成語。");
+          if (gameType === 'matching' && idiomHistory.length < minItemsForMatching) {
+            throw new Error(`配對遊戲至少需要選擇 ${minItemsForMatching} 個成語。`);
+          }
+          if (gameType === 'multiple-choice' && new Set(idiomHistory.map(item => item.idiom)).size < 4) {
+            throw new Error("成語選擇題至少需要選擇 4 個不同的成語。");
+          }
+        } else {
+          // Send up to 50 relevant records so the AI can select quiz items from this pool.
+          idiomHistory = [...list]
+            .sort((a, b) => mode === 'latest'
+              ? b.queryTime - a.queryTime
+              : a.proficiency - b.proficiency || a.queryTime - b.queryTime)
+            .slice(0, 50);
+        }
       } else {
         const list = Object.values(data.english || {});
         if (list.length === 0) throw new Error("目前沒有英文學習紀錄，無法進行測驗。");
-        candidates = list;
+        candidates = mode === 'custom'
+          ? list.filter(item => selectedTargetSet.has(item.word))
+          : list;
+        if (mode === 'custom' && candidates.length === 0) throw new Error("請至少選擇一個單字。");
       }
 
       // Check minimum requirement for matching again just in case
@@ -70,13 +143,15 @@ export const QuizSetup: React.FC<Props> = ({
       let selectedTargets: string[] | undefined;
       if (quizMode === 'english') {
         const selectedCandidates = [...candidates]
-          .sort((a, b) => mode === 'latest'
-            ? b.queryTime - a.queryTime
-            : a.proficiency - b.proficiency || a.queryTime - b.queryTime)
-          .slice(0, 20);
+          .sort((a, b) => mode === 'custom'
+            ? Math.random() - 0.5
+            : mode === 'latest'
+              ? b.queryTime - a.queryTime
+              : a.proficiency - b.proficiency || a.queryTime - b.queryTime)
+          .slice(0, mode === 'custom' ? 10 : 20);
         selectedTargets = selectedCandidates
           .sort(() => Math.random() - 0.5)
-          .slice(0, Math.min(10, Math.max(5, selectedCandidates.length)))
+          .slice(0, mode === 'custom' ? selectedCandidates.length : Math.min(10, Math.max(5, selectedCandidates.length)))
           .map(item => item.word);
       }
 
@@ -97,7 +172,7 @@ export const QuizSetup: React.FC<Props> = ({
       const questions = await generateQuiz({
         targets: selectedTargets,
         history: idiomHistory,
-        selectionMode: quizMode === 'idiom' ? mode : undefined,
+        selectionMode: quizMode === 'idiom' && mode !== 'custom' ? mode : undefined,
         type: requestType as any,
         level: level,
         apiKey: modelSettings.apiKey,
@@ -173,7 +248,81 @@ export const QuizSetup: React.FC<Props> = ({
           <h3>弱點特訓</h3>
           <p>{quizMode === 'idiom' ? '針對還不熟練的成語' : '針對還不熟練的單字'}進行加強練習。</p>
         </div>
+
+        <div
+          className={`mode-card ${selectionMode === 'custom' ? 'selected' : ''}`}
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            setSelectionMode('custom');
+            setError(null);
+          }}
+          onKeyDown={event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setSelectionMode('custom');
+              setError(null);
+            }
+          }}
+        >
+          <div className="icon">☑️</div>
+          <h3>自選</h3>
+          <p>自行勾選要測驗的{quizMode === 'idiom' ? '成語' : '單字'}。</p>
+        </div>
       </div>
+
+      {selectionMode === 'custom' && (
+        <section className="custom-selection" aria-label="自選測驗項目">
+          <div className="selection-heading">
+            <div>
+              <h3>選擇測驗項目</h3>
+              <p>可單獨勾選；按住 Shift 點選另一筆，可一次選取兩筆之間的範圍。</p>
+            </div>
+            <span>已選 {selectedTargetSet.size} 項</span>
+          </div>
+          {selectableItems.length === 0 ? (
+            <p className="empty-selection">目前沒有查詢紀錄可以選擇。</p>
+          ) : (
+            <div className="selection-list">
+              {selectableItems.map((item, index) => (
+                <label className="selection-item" key={item.target}>
+                  <input
+                    type="checkbox"
+                    checked={selectedTargetSet.has(item.target)}
+                    onClick={event => handleItemSelection(item.target, index, event)}
+                  />
+                  <span>{item.target}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          <div className="selection-actions">
+            <button type="button" className="clear-selection" onClick={() => {
+              setSelectedTargets([]);
+              lastSelectedIndex.current = null;
+            }}>
+              清除選擇
+            </button>
+            <button
+              type="button"
+              className="start-selection"
+              disabled={selectedTargetSet.size < minCustomSelectionCount}
+              onClick={() => handleStart('custom')}
+            >
+              開始自選挑戰
+            </button>
+          </div>
+          {selectedTargetSet.size < minCustomSelectionCount && (
+            <p className="selection-requirement">
+              {quizMode === 'idiom' && gameType === 'matching'
+                ? `配對遊戲至少需要選擇 ${minCustomSelectionCount} 個成語。`
+                : quizMode === 'idiom'
+                  ? `成語選擇題至少需要選擇 ${minCustomSelectionCount} 個不同的成語。`
+                  : '請至少選擇一個單字。'}
+            </p>
+          )}
+        </section>
+      )}
 
       <style>{`
         .quiz-setup {
@@ -268,8 +417,9 @@ export const QuizSetup: React.FC<Props> = ({
           background: white;
           border: 2px solid #e0e0e0;
           border-radius: 16px;
-          padding: 2rem;
-          width: 260px;
+          padding: 1.5rem 1rem;
+          flex: 1 1 0;
+          min-width: 0;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
           box-shadow: 0 4px 6px rgba(0,0,0,0.02);
@@ -278,6 +428,10 @@ export const QuizSetup: React.FC<Props> = ({
           transform: translateY(-8px);
           border-color: #4CAF50;
           box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+        }
+        .mode-card.selected {
+          border-color: #2196F3;
+          background: #e3f2fd;
         }
         .mode-card .icon {
           font-size: 3.5rem;
@@ -294,13 +448,113 @@ export const QuizSetup: React.FC<Props> = ({
           margin: 0;
           line-height: 1.5;
         }
+        .custom-selection {
+          margin: 1.5rem auto 0;
+          max-width: 640px;
+          padding: 1.25rem;
+          border: 1px solid #dfe5eb;
+          border-radius: 16px;
+          background: #f8fafc;
+          text-align: left;
+        }
+        .selection-heading {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+        .selection-heading h3 {
+          margin: 0 0 0.4rem;
+          color: #2c3e50;
+        }
+        .selection-heading p {
+          margin: 0;
+          color: #666;
+          font-size: 0.9rem;
+          line-height: 1.5;
+        }
+        .selection-heading > span {
+          white-space: nowrap;
+          color: #1976d2;
+          font-weight: bold;
+        }
+        .selection-list {
+          max-height: 320px;
+          overflow-y: auto;
+          border: 1px solid #e0e0e0;
+          border-radius: 10px;
+          background: white;
+        }
+        .selection-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid #eee;
+          cursor: pointer;
+        }
+        .selection-item:last-child {
+          border-bottom: 0;
+        }
+        .selection-item:hover {
+          background: #f1f7fd;
+        }
+        .selection-item input {
+          width: 1rem;
+          height: 1rem;
+          accent-color: #1976d2;
+        }
+        .empty-selection {
+          padding: 1rem;
+          color: #666;
+          text-align: center;
+        }
+        .selection-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.75rem;
+          margin-top: 1rem;
+        }
+        .selection-actions button {
+          padding: 0.65rem 1rem;
+          border: 0;
+          border-radius: 8px;
+          font-size: 0.95rem;
+          cursor: pointer;
+        }
+        .clear-selection {
+          background: #e9ecef;
+          color: #495057;
+        }
+        .start-selection {
+          background: #1976d2;
+          color: white;
+          font-weight: bold;
+        }
+        .start-selection:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .selection-requirement {
+          margin: 0.75rem 0 0;
+          color: #777;
+          font-size: 0.85rem;
+          text-align: right;
+        }
 
         @media (max-width: 600px) {
           .game-type-selector {
             flex-direction: column;
           }
           .mode-card {
-            width: 100%;
+            flex: 1 1 100%;
+          }
+          .selection-heading {
+            flex-direction: column;
+          }
+          .selection-actions {
+            flex-direction: column-reverse;
           }
         }
       `}</style>
