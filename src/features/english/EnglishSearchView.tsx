@@ -40,6 +40,8 @@ export const EnglishSearchView = () => {
   const [customQuestions, setCustomQuestions] = useState<QuizQuestion[]>([]);
   const [customPhase, setCustomPhase] = useState<'setup' | 'playing' | 'result'>('setup');
   const [customResults, setCustomResults] = useState<QuizResult[]>([]);
+  const [repeatCustomChallenge, setRepeatCustomChallenge] = useState<(() => Promise<QuizQuestion[]>) | null>(null);
+  const [customRetryAction, setCustomRetryAction] = useState<(() => void) | null>(null);
 
   // Load Progress from Drive
   useEffect(() => {
@@ -191,8 +193,14 @@ export const EnglishSearchView = () => {
 
   const [activeTab, setActiveTab] = useState<'search' | 'quiz' | 'custom'>('search');
 
-  const handleCustomStart = (questions: QuizQuestion[], description: string) => {
+  const handleCustomStart = (
+    questions: QuizQuestion[],
+    description: string,
+    repeat: () => Promise<QuizQuestion[]>
+  ) => {
     setCustomQuestions(questions);
+    setRepeatCustomChallenge(() => repeat);
+    setCustomRetryAction(null);
     setCustomPhase('playing');
     
     // Update history
@@ -232,6 +240,24 @@ export const EnglishSearchView = () => {
       setCustomPhase('setup');
       setCustomQuestions([]);
       setCustomResults([]);
+  };
+
+  const handleRepeatCustomChallenge = async () => {
+      if (!repeatCustomChallenge) return;
+      setLoading(true);
+      setError(null);
+      setCustomRetryAction(null);
+      try {
+          const questions = await repeatCustomChallenge();
+          setCustomQuestions(questions);
+          setCustomResults([]);
+          setCustomPhase('playing');
+      } catch (err) {
+          setError(err instanceof Error ? err.message : "測驗生成失敗");
+          setCustomRetryAction(() => handleRepeatCustomChallenge);
+      } finally {
+          setLoading(false);
+      }
   };
 
   return (
@@ -313,6 +339,7 @@ export const EnglishSearchView = () => {
                         onStart={handleCustomStart}
                         setLoading={setLoading}
                         setError={setError}
+                        onRetryActionChange={retryAction => setCustomRetryAction(() => retryAction)}
                         onDeleteHistory={handleDeleteCustomChallenge}
                     />
                 )}
@@ -329,17 +356,25 @@ export const EnglishSearchView = () => {
                         results={customResults}
                         questions={customQuestions}
                         onClose={handleCustomClose}
+                        onRepeat={handleRepeatCustomChallenge}
                     />
                 )}
 
-                {loading && customPhase === 'setup' && (
+                {loading && (
                     <div className="loading-overlay">
                         <div className="spinner"></div>
                         <p>正在生成客製化題目，請稍候...</p>
                     </div>
                 )}
-                {error && customPhase === 'setup' && (
-                    <div className="error-message">{error}</div>
+                {error && (
+                    <div className="error-message">
+                        {error}
+                        {customRetryAction && (
+                            <button type="button" className="retry-button" onClick={customRetryAction}>
+                                再試一次
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
         )}
@@ -379,6 +414,17 @@ export const EnglishSearchView = () => {
           border-radius: 4px;
           margin: 1rem 0;
           text-align: center;
+        }
+        .retry-button {
+          display: block;
+          margin: 0.75rem auto 0;
+          padding: 0.55rem 1.2rem;
+          border: 0;
+          border-radius: 20px;
+          background: #d32f2f;
+          color: white;
+          font-weight: bold;
+          cursor: pointer;
         }
         .loading-overlay {
           position: fixed;

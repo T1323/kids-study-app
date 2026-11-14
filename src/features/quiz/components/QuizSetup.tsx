@@ -14,9 +14,14 @@ interface Props {
     customModel: string;
     customBaseURL: string;
   };
-  onStart: (questions: QuizQuestion[] | MatchingPair[], type: 'multiple-choice' | 'matching') => void;
+  onStart: (
+    questions: QuizQuestion[] | MatchingPair[],
+    type: 'multiple-choice' | 'matching',
+    repeat: () => Promise<QuizQuestion[] | MatchingPair[]>
+  ) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  onRetryActionChange: (retryAction: (() => void) | null) => void;
   quizMode?: 'idiom' | 'english';
 }
 
@@ -27,6 +32,7 @@ export const QuizSetup: React.FC<Props> = ({
   onStart,
   setLoading,
   setError,
+  onRetryActionChange,
   quizMode = 'idiom'
 }) => {
   const { quizQuestionCount: questionCount } = useGlobalContext();
@@ -75,6 +81,26 @@ export const QuizSetup: React.FC<Props> = ({
 
   const canPlayMatching = availableCount >= minItemsForMatching;
 
+  const retryGeneration = async (
+    request: Parameters<typeof generateQuiz>[0],
+    type: 'multiple-choice' | 'matching'
+  ) => {
+    setLoading(true);
+    setError(null);
+    onRetryActionChange(null);
+    try {
+      const questions = await generateQuiz(request);
+      onStart(questions, type, () => generateQuiz(request));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "測驗生成失敗");
+      onRetryActionChange(() => {
+        void retryGeneration(request, type);
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleItemSelection = (target: string, index: number, event: React.MouseEvent<HTMLInputElement>) => {
     const shouldSelect = !selectedTargetSet.has(target);
     const isRangeSelection = event.shiftKey || shiftKeyPressed.current;
@@ -102,6 +128,8 @@ export const QuizSetup: React.FC<Props> = ({
   const handleStart = async (mode: 'latest' | 'weakest' | 'custom') => {
     setLoading(true);
     setError(null);
+    onRetryActionChange(null);
+    let failedRequest: Parameters<typeof generateQuiz>[0] | null = null;
     try {
       let candidates: any[] = [];
       let idiomHistory: IdiomProgress[] | undefined;
@@ -169,7 +197,7 @@ export const QuizSetup: React.FC<Props> = ({
           throw new Error("英文配對遊戲尚未開放。");
       }
 
-      const questions = await generateQuiz({
+      const request = {
         targets: selectedTargets,
         history: idiomHistory,
         selectionMode: quizMode === 'idiom' && mode !== 'custom' ? mode : undefined,
@@ -180,11 +208,20 @@ export const QuizSetup: React.FC<Props> = ({
         model: modelSettings.customModel,
         baseURL: modelSettings.customBaseURL,
         questionCount: questionCount,
-      });
+      };
+      failedRequest = request;
+      const questions = await generateQuiz(request);
 
-      onStart(questions, gameType);
+      onStart(questions, gameType, () => generateQuiz(request));
     } catch (err: any) {
       setError(err.message || "測驗生成失敗");
+      if (failedRequest) {
+        const request = failedRequest;
+        const type = gameType;
+        onRetryActionChange(() => {
+          void retryGeneration(request, type);
+        });
+      }
     } finally {
       setLoading(false);
     }

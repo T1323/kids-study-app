@@ -13,9 +13,14 @@ interface Props {
     customModel: string;
     customBaseURL: string;
   };
-  onStart: (questions: QuizQuestion[], description: string) => void;
+  onStart: (
+    questions: QuizQuestion[],
+    description: string,
+    repeat: () => Promise<QuizQuestion[]>
+  ) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  onRetryActionChange: (retryAction: (() => void) | null) => void;
   onDeleteHistory?: (id: string) => void;
 }
 
@@ -26,6 +31,7 @@ export const CustomChallengeSetup: React.FC<Props> = ({
   onStart,
   setLoading,
   setError,
+  onRetryActionChange,
   onDeleteHistory,
 }) => {
   const { quizQuestionCount } = useGlobalContext();
@@ -39,8 +45,9 @@ export const CustomChallengeSetup: React.FC<Props> = ({
 
     setLoading(true);
     setError(null);
+    onRetryActionChange(null);
     try {
-      const questions = await generateQuiz({
+      const request = {
         description: desc.trim(),
         type: 'english',
         level: level,
@@ -49,11 +56,18 @@ export const CustomChallengeSetup: React.FC<Props> = ({
         model: modelSettings.customModel,
         baseURL: modelSettings.customBaseURL,
         questionCount: quizQuestionCount,
-      });
+      } as const;
+      const questions = await generateQuiz(request);
 
-      onStart(questions as QuizQuestion[], desc.trim());
+      onStart(questions as QuizQuestion[], desc.trim(), async () => {
+        const repeatedQuestions = await generateQuiz(request);
+        return repeatedQuestions as QuizQuestion[];
+      });
     } catch (err: any) {
       setError(err.message || "測驗生成失敗");
+      onRetryActionChange(() => {
+        void handleStart(desc);
+      });
     } finally {
       setLoading(false);
     }

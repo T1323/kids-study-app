@@ -36,17 +36,47 @@ export const QuizView: React.FC<Props> = ({
   const [matchingPairs, setMatchingPairs] = useState<MatchingPair[]>([]);
   const [gameType, setGameType] = useState<'multiple-choice' | 'matching'>('multiple-choice');
   const [results, setResults] = useState<QuizResult[]>([]);
+  const [repeatQuiz, setRepeatQuiz] = useState<(() => Promise<QuizQuestion[] | MatchingPair[]>) | null>(null);
+  const [retryAction, setRetryAction] = useState<(() => void) | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleStart = (qs: QuizQuestion[] | MatchingPair[], type: 'multiple-choice' | 'matching') => {
+  const handleStart = (
+    qs: QuizQuestion[] | MatchingPair[],
+    type: 'multiple-choice' | 'matching',
+    repeat: () => Promise<QuizQuestion[] | MatchingPair[]>
+  ) => {
     setGameType(type);
+    setRepeatQuiz(() => repeat);
+    setRetryAction(null);
     if (type === 'matching') {
         setMatchingPairs(qs as MatchingPair[]);
     } else {
         setQuestions(qs as QuizQuestion[]);
     }
     setPhase('playing');
+  };
+
+  const handleRepeat = async () => {
+    if (!repeatQuiz) return;
+    setLoading(true);
+    setError(null);
+    setRetryAction(null);
+    try {
+      const repeatedQuestions = await repeatQuiz();
+      if (gameType === 'matching') {
+        setMatchingPairs(repeatedQuestions as MatchingPair[]);
+      } else {
+        setQuestions(repeatedQuestions as QuizQuestion[]);
+      }
+      setResults([]);
+      setPhase('playing');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "測驗生成失敗");
+      setRetryAction(() => handleRepeat);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleComplete = (rs: QuizResult[]) => {
@@ -135,6 +165,7 @@ export const QuizView: React.FC<Props> = ({
     setQuestions([]);
     setMatchingPairs([]);
     setResults([]);
+    setRetryAction(null);
   };
 
   return (
@@ -149,6 +180,11 @@ export const QuizView: React.FC<Props> = ({
       {error && (
         <div className="error-message">
           ⚠️ {error}
+          {retryAction && (
+            <button type="button" className="retry-button" onClick={retryAction}>
+              再試一次
+            </button>
+          )}
         </div>
       )}
 
@@ -160,6 +196,7 @@ export const QuizView: React.FC<Props> = ({
           onStart={handleStart}
           setLoading={setLoading}
           setError={setError}
+          onRetryActionChange={retryAction => setRetryAction(() => retryAction)}
           quizMode={quizMode}
         />
       )}
@@ -187,12 +224,14 @@ export const QuizView: React.FC<Props> = ({
                   results={results}
                   questions={questions}
                   onClose={handleClose}
+                  onRepeat={handleRepeat}
                 />
             ) : (
                 <MatchingResultView 
                   results={results}
                   pairs={matchingPairs}
                   onClose={handleClose}
+                  onRepeat={handleRepeat}
                 />
             )}
         </>
@@ -231,6 +270,17 @@ export const QuizView: React.FC<Props> = ({
           border-radius: 8px;
           margin-bottom: 1rem;
           text-align: center;
+        }
+        .retry-button {
+          display: block;
+          margin: 0.75rem auto 0;
+          padding: 0.55rem 1.2rem;
+          border: 0;
+          border-radius: 20px;
+          background: #f57f17;
+          color: white;
+          font-weight: bold;
+          cursor: pointer;
         }
         @keyframes spin {
           0% { transform: rotate(0deg); }
