@@ -5,9 +5,10 @@ interface Props {
   results: QuizResult[];
   questions: QuizQuestion[];
   onClose: () => void;
+  onRepeat?: () => void;
 }
 
-export const QuizResultView: React.FC<Props> = ({ results, questions, onClose }) => {
+export const QuizResultView: React.FC<Props> = ({ results, questions, onClose, onRepeat }) => {
   const correctCount = results.filter(r => r.isCorrect).length;
   const totalCount = results.length;
   const score = Math.round((correctCount / totalCount) * 100);
@@ -54,9 +55,10 @@ export const QuizResultView: React.FC<Props> = ({ results, questions, onClose })
         })}
       </div>
 
-      <button className="finish-btn" onClick={onClose}>
-        完成測驗
-      </button>
+      <div className="result-actions">
+        {onRepeat && <button className="repeat-btn" onClick={onRepeat}>再測一次</button>}
+        <button className="finish-btn" onClick={onClose}>完成測驗</button>
+      </div>
 
       <style>{`
         .quiz-result {
@@ -150,6 +152,23 @@ export const QuizResultView: React.FC<Props> = ({ results, questions, onClose })
           font-weight: bold;
           box-shadow: 0 4px 6px rgba(33, 150, 243, 0.3);
           transition: transform 0.1s;
+        }
+        .result-actions {
+          display: flex;
+          justify-content: center;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+        .repeat-btn {
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          background: #4caf50;
+          color: white;
+          border: none;
+          border-radius: 30px;
+          cursor: pointer;
+          font-weight: bold;
+          box-shadow: 0 4px 6px rgba(76, 175, 80, 0.3);
         }
         .finish-btn:active {
           transform: scale(0.98);
