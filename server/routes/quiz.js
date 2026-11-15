@@ -27,7 +27,7 @@ export async function postGenerateQuiz(req, res) {
       }
     }
 
-    const { idioms, targets, history, selectionMode, description, type, level, apiKey, provider, model, baseURL, questionCount } = body;
+    const { idioms, targets, history, selectionMode, description, type, level, apiKey, provider, model, baseURL, questionCount, previousExamples } = body;
     
     const targetList = targets || idioms; // Legacy support for 'idioms'
     const hasHistory = Array.isArray(history) && history.length > 0;
@@ -100,6 +100,27 @@ export async function postGenerateQuiz(req, res) {
     const shuffledHistory = normalizedHistory ? shuffle(normalizedHistory) : undefined;
     const limitedTargets = shuffledHistory?.map((item) => item.idiom) || targetList.slice(0, 10);
     const validSelectionMode = selectionMode === "weakest" ? "weakest" : "latest";
+    const allowedMatchingIdioms = new Set(
+      (normalizedHistory?.map((item) => item.idiom) || (Array.isArray(targetList) ? targetList : []))
+        .filter((idiom) => typeof idiom === "string")
+        .map((idiom) => idiom.trim())
+        .filter(Boolean)
+    );
+    const recentMatchingExamples = quizType === "idiom-matching" && Array.isArray(previousExamples)
+      ? previousExamples
+          .filter((example) =>
+            example &&
+            typeof example.idiom === "string" &&
+            typeof example.sentence === "string" &&
+            allowedMatchingIdioms.has(example.idiom.trim())
+          )
+          .slice(-30)
+          .map((example) => ({
+            idiom: example.idiom.trim().slice(0, 100),
+            sentence: example.sentence.trim().slice(0, 300),
+          }))
+          .filter((example) => example.sentence)
+      : [];
     
     const { questions, debug } = await generateQuizWithLLM(
       limitedTargets,
@@ -108,7 +129,8 @@ export async function postGenerateQuiz(req, res) {
       quizType,
       validQuestionCount,
       shuffledHistory,
-      validSelectionMode
+      validSelectionMode,
+      recentMatchingExamples
     );
     res.json({ questions, debug });
 
